@@ -7,6 +7,32 @@
 <body>
   <div id="drag-handle"></div>
   <canvas id="dog-canvas" width="128" height="144"></canvas>
+
+  <!-- Cards shown in the temporary larger "panel mode" -->
+  <div id="panel" class="hidden">
+    <div id="onboarding" class="card hidden">
+      <div class="card-emoji">🐶</div>
+      <h1>Hi, I'm Dodo!</h1>
+      <ul>
+        <li><b>Drag me</b> anywhere on your screen</li>
+        <li><b>Right-click</b> me to quit</li>
+        <li>I react to your <b>mouse &amp; typing</b></li>
+      </ul>
+      <button id="onboarding-ok">Got it</button>
+    </div>
+
+    <div id="permission" class="card hidden">
+      <div class="card-emoji">🔒</div>
+      <h1>Let me see your mouse &amp; typing</h1>
+      <p>Turn on <b>Input Monitoring</b> for Dodo in System Settings, then restart me so I can react.</p>
+      <div class="btn-row">
+        <button id="perm-open">Open Settings</button>
+        <button id="perm-restart" class="secondary">Restart Dodo</button>
+      </div>
+      <button id="perm-dismiss" class="link">Not now</button>
+    </div>
+  </div>
+
   <script src="dog.js"></script>
 </body>
 </html>

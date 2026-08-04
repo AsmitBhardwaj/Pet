@@ -324,4 +324,86 @@ if (window.comnyang) {
   });
 }
 
+// --- first-run onboarding + macOS permission helper ---
+(function setupPanels() {
+  const bridge = window.comnyang;
+  if (!bridge) return;
+
+  const panelEl = document.getElementById('panel');
+  const onboardingEl = document.getElementById('onboarding');
+  const permissionEl = document.getElementById('permission');
+
+  let platform = 'darwin';
+  let onboardingActive = false;
+  let permissionQueued = false;
+
+  function openCard(which) {
+    document.body.classList.add('panel-open');
+    panelEl.classList.remove('hidden');
+    onboardingEl.classList.toggle('hidden', which !== 'onboarding');
+    permissionEl.classList.toggle('hidden', which !== 'permission');
+    bridge.enterPanel();
+  }
+
+  function closePanel() {
+    panelEl.classList.add('hidden');
+    onboardingEl.classList.add('hidden');
+    permissionEl.classList.add('hidden');
+    document.body.classList.remove('panel-open');
+    bridge.exitPanel();
+  }
+
+  function showPermission() {
+    // Only macOS gates global input; on other platforms there's nothing to do.
+    if (platform !== 'darwin') return;
+    openCard('permission');
+  }
+
+  function finishOnboarding() {
+    onboardingActive = false;
+    bridge.setOnboarded();
+    if (permissionQueued) {
+      permissionQueued = false;
+      showPermission();
+    } else {
+      closePanel();
+    }
+  }
+
+  bridge.onAppInit(({ firstRun, platform: plat }) => {
+    if (plat) platform = plat;
+    if (firstRun) {
+      onboardingActive = true;
+      openCard('onboarding');
+    }
+  });
+
+  bridge.onPermissionNeeded(() => {
+    // Defer the permission card until after onboarding, if that's open.
+    if (onboardingActive) permissionQueued = true;
+    else showPermission();
+  });
+
+  bridge.onHooksActive(() => {
+    // Reactions are working — retract any pending/visible permission prompt.
+    permissionQueued = false;
+    if (!onboardingActive && !permissionEl.classList.contains('hidden')) {
+      closePanel();
+    }
+  });
+
+  document
+    .getElementById('onboarding-ok')
+    .addEventListener('click', finishOnboarding);
+  document
+    .getElementById('perm-open')
+    .addEventListener('click', () => bridge.openInputMonitoringSettings());
+  document
+    .getElementById('perm-restart')
+    .addEventListener('click', () => bridge.restartApp());
+  document
+    .getElementById('perm-dismiss')
+    .addEventListener('click', closePanel);
+})();
+
 requestAnimationFrame(tick);
