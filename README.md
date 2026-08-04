@@ -1,70 +1,132 @@
-# Comnyang 🐕
+# Dodo 🐾
 
-A tiny pixel dog that lives on your desktop. It sits in the bottom-right
-corner, its eyes track your mouse anywhere on screen, it heats up from
-brown → dark red → bright red the more you type, and it has a tongue you
-can grab and stretch.
+Dodo is a tiny pixel pet that lives on your desktop — but instead of a
+generic mascot, **it's modeled on your own pet.** Send a photo of your
+dog (or cat), and Dodo turns it into a small pixel-art sprite that sits
+in the corner of your screen, reacts to what you're doing, and feels
+like *yours* instead of a stock character.
 
-## Setup
+## The idea
+
+1. **You send a picture of your pet.**
+2. **We turn it into a pixel sprite** — matching its coloring, ear
+   shape, and general vibe, in the same small pixel-art style as the
+   reference widget this project is inspired by.
+3. **You get a lightweight desktop widget** with that sprite: it sits
+   quietly in a corner, reacts to your mouse and keyboard, and has a
+   couple of fun physical touches (see below) — a little companion
+   that's actually *your* pet, not a random cartoon animal.
+
+This repo is the engine that makes step 3 work. Step 2 (photo → sprite)
+is the part we're actively building — see **Roadmap** below for where
+that stands.
+
+## What's working right now (v1)
+
+- **Transparent, always-on-top desktop window** — sits in a corner,
+  doesn't steal focus, drag it anywhere.
+- **Eyes track your cursor** anywhere on screen, not just when it's
+  hovering over the widget (uses global mouse tracking).
+- **"Heat" reacts to typing** — the pet's coat gradually shifts color
+  the more actively you're typing, and cools back down when you stop.
+- **Stretchy tongue** — click and hold near the mouth, drag, and the
+  tongue follows your cursor up to a max length, then springs back with
+  a little bounce when you let go.
+- **Idle animation** — blinking and tail movement so it feels alive
+  even when you're not interacting with it.
+- **Packaged as a real app** — ships as a double-clickable `.dmg`
+  (macOS) / installer (Windows) via `electron-builder`, not just a dev
+  script.
+
+Right now it ships with one hand-drawn placeholder sprite (a pixel
+golden retriever) while the photo-to-sprite pipeline is being built —
+see Roadmap.
+
+## Setup (development)
 
 ```bash
-cd comnyang
+cd dodo
 npm install
 npm start
 ```
 
-That's it — a small transparent window should appear in the bottom-right
-corner of your screen with the cat in it.
+A small transparent window should appear in the corner of your screen
+with the pet in it.
 
 ## macOS: enable Accessibility / Input Monitoring
 
 Global mouse and keyboard tracking (via `uiohook-napi`) requires OS
 permission on macOS:
 
-1. Run `npm start` once — macOS will prompt you, or silently block it.
-2. Go to **System Settings → Privacy & Security → Accessibility** (and also
-   **Input Monitoring**) and enable it for your terminal app (Terminal,
-   iTerm, VS Code, whichever you ran `npm start` from).
-3. Restart the app.
+1. Run the app once — macOS may prompt automatically, or silently
+   block the feature without prompting.
+2. Go to **System Settings → Privacy & Security → Accessibility** (and
+   also **Input Monitoring**) and enable it for whatever is running the
+   app — your terminal app in dev (`npm start`), or the packaged
+   **Dodo.app** itself once installed from a built `.dmg`.
+3. Fully quit and reopen the app afterward.
+
+A packaged build is the more reliable path here: it has a stable app
+identity, so the permission sticks properly, instead of being tied to
+whichever terminal app happened to launch it during development.
 
 On Windows/Linux this generally works without extra permissions.
 
-## How it works
+## Building a distributable app
 
-- `main.js` — creates a transparent, frameless, always-on-top Electron
-  window, and uses `uiohook-napi` to listen for **global** mouse movement
-  and keystrokes (i.e. even when the dog window isn't focused).
+```bash
+npm run dist:mac   # produces a .dmg
+npm run dist:win   # produces a Windows installer
+```
+
+See `BUILD.md` for the full packaging + code-signing/notarization
+walkthrough (important before distributing to other people — an
+unsigned build shows a scary "unidentified developer" warning on first
+launch).
+
+## How it works (technical)
+
+- `main.js` — creates the transparent, frameless, always-on-top
+  Electron window, and uses `uiohook-napi` to listen for **global**
+  mouse movement and keystrokes (i.e. even when the widget isn't
+  focused).
 - `preload.js` — safely bridges those events into the renderer via
   `contextBridge`.
-- `renderer/dog.js` — draws the dog on a small canvas each frame:
-  - Eyes/pupils angle toward wherever your cursor is on screen (global).
-  - A "heat" value ramps up while you're actively typing and decays when
-    you stop, driving the body color from warm brown to bright red.
-  - The tail wags and the dog blinks every few seconds.
-  - **Tongue:** click and hold near the mouth, then drag — the tongue
-    stretches toward your cursor (up to a max length) in whatever
-    direction you pull. Let go and it springs back with a little bounce,
-    using a simple damped-spring simulation. This uses normal in-window
-    pointer events (not the global hook), so it only responds while your
-    cursor is actually over the dog.
-  - Because the tongue needs local mouse control, the canvas itself is
-    `no-drag`; window dragging now happens via the small translucent tab
-    at the very top of the window instead of the whole body.
+- `renderer/dog.js` — draws the pet on a small canvas each frame from a
+  hand-authored pixel grid (`SPRITE`), with:
+  - Eyes/pupils that shift toward wherever your cursor is on screen.
+  - A "heat" value that ramps up while typing and decays when idle,
+    tinting the coat color.
+  - A damped-spring tongue simulation driven by local pointer
+    events (drag near the mouth to stretch it, release to snap back).
+  - Idle blink + tail motion.
+- The canvas is intentionally `no-drag` so the tongue can capture mouse
+  drags; window repositioning is handled separately (see the dragging
+  section in code/BUILD notes — this is an active area of iteration).
 
-## Where to take it next
+## Roadmap
 
-- Add more moods (idle purring, curling up after a long idle period).
-- React to specific apps in focus (e.g. calmer during meetings, more
-  hyper during long coding sessions).
-- Package it with `electron-builder` so it's a double-clickable app
-  instead of something run via `npm start`.
-- Swap the hand-drawn pixel grid in `cat.js` for a proper sprite sheet
-  if you want more expressive animation frames.
+**Near-term (the core "your pet" pipeline):**
+- Photo upload flow (drag in a picture of your pet).
+- Image → pixel-sprite generation: extract dominant coat color, ear
+  shape (floppy/pointy), and rough proportions, and map them onto a
+  small library of sprite templates (or generate a bespoke grid).
+- Let people preview and tweak the generated sprite before it becomes
+  their permanent widget.
+- One-click "get my widget" — bundle the personalized sprite into a
+  ready-to-run app for the user, without them touching any code.
 
-## Note on the "AI agent" reaction (v2 idea)
+**Also planned:**
+- More moods (curling up after long idle periods, excitement bursts).
+- Reacting to specific apps in focus (calmer during meetings, more
+  hyper during long coding/agent sessions).
+- Code signing + notarization so the shipped app opens with zero
+  security warnings on a fresh Mac.
+- Windows parity testing (most development so far has been macOS-first).
 
-Not wired up yet, per your call to keep v1 to mouse + typing only. When
-you're ready: the cleanest hook would be watching for a running
-`claude` / terminal process (via `ps` on an interval, or a small file the
-agent touches) and sending that as another IPC event, same pattern as
-`typing-tick`.
+## Known rough edges
+
+- Native module builds (`uiohook-napi`) can fail if the project lives
+  in a path with spaces — keep the project folder path space-free.
+- Unsigned builds trigger a one-time "unidentified developer" warning
+  on macOS; this goes away once signed/notarized (see `BUILD.md`).
