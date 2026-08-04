@@ -58,13 +58,28 @@
     "ipc": {
       "mainToRenderer": [
         { "channel": "cursor-update", "payload": "{ dx, dy } — cursor offset from the dog's center", "consumer": "eye tracking" },
-        { "channel": "typing-tick", "payload": "none", "consumer": "typing-heat tint" }
+        { "channel": "typing-tick", "payload": "none", "consumer": "typing-heat tint" },
+        { "channel": "app-init", "payload": "{ firstRun, platform } — sent once on did-finish-load", "consumer": "onboarding card decision" },
+        { "channel": "permission-needed", "payload": "none", "consumer": "shows the macOS Input Monitoring helper card" },
+        { "channel": "hooks-active", "payload": "none — fired on the first real input event", "consumer": "retracts the permission card (self-correcting)" }
       ],
       "rendererToMain": [
         { "channel": "window-move-by", "payload": "{ dx, dy } — pointer movement deltas", "handler": "moves the frameless window (setPosition) for whole-body dragging" },
-        { "channel": "show-context-menu", "payload": "none", "handler": "pops a native menu with Quit Dodo" }
+        { "channel": "show-context-menu", "payload": "none", "handler": "pops a native menu with Quit Dodo" },
+        { "channel": "ui-enter-panel", "payload": "none", "handler": "resizes window to a larger centered 'panel mode' for readable cards" },
+        { "channel": "ui-exit-panel", "payload": "none", "handler": "restores the small widget window at its saved position" },
+        { "channel": "set-onboarded", "payload": "none", "handler": "persists onboarded:true so onboarding shows only once" },
+        { "channel": "open-input-monitoring-settings", "payload": "none", "handler": "deep-links to macOS Input Monitoring pane via shell.openExternal" },
+        { "channel": "restart-app", "payload": "none", "handler": "app.relaunch() + app.exit(0) so newly-granted permissions take effect" }
       ],
-      "preloadNamespace": "window.comnyang (legacy name inherited from a cat-widget predecessor; methods: onCursorUpdate, onTypingTick, moveBy, showContextMenu)"
+      "preloadNamespace": "window.comnyang (legacy name inherited from a cat-widget predecessor; methods: onCursorUpdate, onTypingTick, onAppInit, onPermissionNeeded, onHooksActive, moveBy, showContextMenu, enterPanel, exitPanel, setOnboarded, openInputMonitoringSettings, restartApp)"
+    },
+    "firstRunExperience": {
+      "settingsFile": "userData/settings.json — { pos: {x,y}, onboarded: bool }",
+      "positionPersistence": "widget position saved (debounced) on window 'move' and on 'close', restored on launch if still on-screen (isWidgetVisibleAt guards against unplugged monitors). Not saved while in panel mode.",
+      "panelMode": "the widget window (128x200) is too small for text, so onboarding + permission cards are shown by temporarily resizing to 360x260 centered on the current display (enter/exitPanelMode; setResizable toggled around setBounds because it can be ignored when resizable:false). The dog canvas is hidden via body.panel-open while a card shows.",
+      "onboarding": "first-run card ('Drag me', 'Right-click to quit', 'reacts to mouse & typing'); dismissed with 'Got it' which persists onboarded:true.",
+      "permissionHelper": "macOS-only. Detection is FUNCTIONAL: if no global input event arrives within 4s of uIOhook.start() (or the module fails to load/start), show a card with 'Open Settings' (deep-link) + 'Restart Dodo'. Self-corrects: the first real event fires hooks-active and retracts the card. On first run the permission card is queued behind onboarding."
     },
     "interactions": {
       "eyeTracking": "pupils shift up to 1 cell toward the cursor (drawEyes), driven by cursor-update.",

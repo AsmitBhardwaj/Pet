@@ -17,12 +17,15 @@ _Last updated: 2026-08-04_
 - [x] Swapped in the current `SPRITE` grid per user request.
 - [x] Whole-body **drag** — click+drag anywhere on the dog moves the window anywhere on screen (movement-delta based; grab/grabbing cursor). Mouth still pulls the tongue.
 - [x] **Quit** — right-click → native *Quit Dodo* menu + Cmd+Q. First discoverable way to remove the widget.
+- [x] **First-run onboarding card** — one-time "Drag me / Right-click to quit / reacts to mouse & typing" (persists `onboarded` flag).
+- [x] **macOS permission helper** — functional detection (no input events within 4s ⇒ prompt); card with "Open Settings" deep-link + "Restart Dodo"; self-dismisses when events start.
+- [x] **Window position persistence** — saved to `userData/settings.json`, restored on launch if still on-screen.
 
 ## In progress / current focus 🔧
 - [ ] **Perfect the current single-dog widget** — polish interactions and feel before adding new systems.
 
 ## User action required ⚠️
-- [ ] Grant macOS **Input Monitoring** (and likely **Accessibility**) so typing-heat + eye-tracking fire. System Settings → Privacy & Security. In dev this attaches to the terminal app; a packaged build attaches to `Dodo.app`.
+- [ ] Grant macOS **Input Monitoring** (and likely **Accessibility**) so typing-heat + eye-tracking fire. The in-app permission card now guides this: **Open Settings** (deep-links to the pane) → enable Dodo → **Restart Dodo**. In dev the permission attaches to the terminal app; a packaged build attaches to `Dodo.app`.
 
 ## Next 🟡
 - [ ] Make sprites **data-driven**: move `SPRITE` + palette + anchors into `sprites/*.json` and load dynamically. Foundation for multi-pet + downloads.
