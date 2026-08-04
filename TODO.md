@@ -36,6 +36,10 @@ _Last updated: 2026-08-04_
 - [ ] **Photo → pixel-sprite** pipeline for custom pets. Recommended **template-based** (fixed pose + eye/mouth regions; photo drives coat colors/markings/ears) so interactions keep working. Consider bumping the grid to ~48–64 for likeness.
 - [ ] Per-pet **distribution**: once sprites are data files, a "pet" is just a small downloadable file — no per-pet app rebuild.
 - [ ] Decide whether to remove the now-redundant legacy `#drag-handle`.
+- [ ] **Launch-at-login** toggle in the right-click menu (`app.setLoginItemSettings`).
+- [ ] macOS **usage-description string** for input monitoring via `build.mac.extendInfo` (nicer permission prompt).
+- [ ] Fix **BUILD.md name drift** ("Comnyang" → "Dodo"; dmg is `Dodo-0.1.0-arm64.dmg`).
+- [ ] Optional: add a **Content-Security-Policy** meta to `index.html` to silence the Electron dev CSP warning.
 
 ## Gotchas to remember
 - Frameless + `skipTaskbar` ⇒ **no OS close button**; quitting must be app-provided.
