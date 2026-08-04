@@ -1,0 +1,32 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  position: relative;
+  -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#dog-canvas {
+  display: block;
+  image-rendering: pixelated;
+  -webkit-app-region: no-drag;
+  touch-action: none; /* needed so pointer drag doesn't scroll/select */
+  cursor: grab;       /* body drags the window; changes to grabbing while held */
+}
+
+/* Small tab used to move the window around, kept separate from the
+   canvas so it doesn't fight with the tongue-pulling interaction. */
+#drag-handle {
+  position: absolute;
+  top: 0;
+  left: 65px;
+  width: 50px;
+  height: 10px;
+  border-radius: 0 0 6px 6px;
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-app-region: drag;
+  z-index: 10;
+}
