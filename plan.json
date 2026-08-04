@@ -1,0 +1,127 @@
+{
+  "$schema_note": "Context + roadmap for the Dodo desktop-pet widget. Kept in the repo so any agent has full context before touching the code. Update this whenever architecture, decisions, or roadmap change.",
+  "lastUpdated": "2026-08-04",
+  "project": {
+    "name": "Dodo",
+    "version": "0.1.0",
+    "author": "Asmit Bhardwaj",
+    "description": "A tiny pixel dog (golden retriever) that lives on the desktop and reacts to the mouse and typing.",
+    "type": "Electron desktop-pet widget",
+    "platforms": ["macOS (arm64)", "Windows (x64)"],
+    "packaging": "electron-builder (dmg arm64 / nsis x64)"
+  },
+  "architecture": {
+    "entry": "main.js",
+    "preload": "preload.js",
+    "renderer": {
+      "html": "renderer/index.html",
+      "logic": "renderer/dog.js",
+      "styles": "renderer/style.css"
+    },
+    "window": {
+      "size": { "width": 128, "height": 200 },
+      "positionedAt": "bottom-right of the primary display work area, 24px margin",
+      "flags": ["transparent", "frame:false", "alwaysOnTop", "resizable:false", "skipTaskbar", "hasShadow:false"],
+      "visibleOnAllWorkspaces": true,
+      "note": "Frameless + skipTaskbar means there is NO OS close button; quitting is app-provided (see interactions.quit)."
+    },
+    "sprite": {
+      "format": "ASCII grid — array of fixed-width strings in renderer/dog.js (const SPRITE), each char mapped through the palette C.",
+      "grid": { "width": 32, "height": 36 },
+      "scale": 4,
+      "canvas": { "width": 128, "height": 144 },
+      "rendering": "drawn pixel-by-pixel on a canvas; image-rendering: pixelated; imageSmoothingEnabled=false",
+      "palette": {
+        "_": "transparent",
+        "O": "outline / dark brown #3a2415",
+        "D": "darker golden (shadows, legs) #b5793a",
+        "G": "main golden coat #e0a860",
+        "L": "light golden (chest, muzzle) #f2d19a",
+        "W": "eye white / teeth #ffffff",
+        "N": "nose #2a1a10",
+        "P": "tongue pink #e8748a",
+        "K": "pupil / dark #1a1008"
+      },
+      "tintableChars": ["G", "L", "D"],
+      "anchors": {
+        "eyes": { "rows": "10-12", "cols": "9-11 (left) & 19-21 (right)", "note": "3x3 white blocks; eyes are drawn dynamically (drawEyes) so pupils can track the cursor — those cells are skipped by drawSprite." },
+        "mouth": { "x": 15, "y": 19, "note": "tongue anchor + tongue-pull hit region (< 6 grid cells)." }
+      },
+      "constraint": "All interactions are welded to these fixed anchors. Any replacement sprite must keep the same pose and eye/mouth positions, OR the anchors + drawEyes/drawTongue must be updated to match."
+    },
+    "globalInput": {
+      "library": "uiohook-napi",
+      "events": ["mousemove (drives eye tracking)", "keydown (drives typing-heat)"],
+      "loadedIn": "main.js setupGlobalListeners() — wrapped in try/catch; app still runs if it fails to load, reactions just disabled.",
+      "macosPermissions": "Global hooks require macOS Input Monitoring (and often Accessibility). Cannot be granted from code. In dev (npm start) the permission attaches to the TERMINAL app; a packaged build attaches to Dodo.app. Without it the app runs but typing/cursor reactions silently do nothing."
+    },
+    "ipc": {
+      "mainToRenderer": [
+        { "channel": "cursor-update", "payload": "{ dx, dy } — cursor offset from the dog's center", "consumer": "eye tracking" },
+        { "channel": "typing-tick", "payload": "none", "consumer": "typing-heat tint" }
+      ],
+      "rendererToMain": [
+        { "channel": "window-move-by", "payload": "{ dx, dy } — pointer movement deltas", "handler": "moves the frameless window (setPosition) for whole-body dragging" },
+        { "channel": "show-context-menu", "payload": "none", "handler": "pops a native menu with Quit Dodo" }
+      ],
+      "preloadNamespace": "window.comnyang (legacy name inherited from a cat-widget predecessor; methods: onCursorUpdate, onTypingTick, moveBy, showContextMenu)"
+    },
+    "interactions": {
+      "eyeTracking": "pupils shift up to 1 cell toward the cursor (drawEyes), driven by cursor-update.",
+      "blink": "periodic auto-blink on a frame timer.",
+      "typingHeat": "keydown raises 'heat' which tints the golden coat toward warm red; decays when typing stops.",
+      "tongue": "click+drag within ~6 grid cells of the mouth stretches a springy tongue toward the pointer; releases with a spring-back.",
+      "drag": "click+drag anywhere else on the body moves the whole window to any point on screen (movementX/Y deltas -> window-move-by). Cursor shows grab/grabbing.",
+      "dragHandleLegacy": "a small top-center #drag-handle div using -webkit-app-region: drag still exists; now redundant with body-drag, kept for now.",
+      "quit": "right-click the dog -> native context menu -> 'Quit Dodo' (app.quit()); Cmd+Q also works when focused. This is the only intended way to remove the widget."
+    }
+  },
+  "decisions": [
+    "Sprite stays as an ASCII grid in the SPRITE format (not a PNG) per user preference.",
+    "Whole-body drag implemented with physical pointer movement deltas (movementX/Y) rather than absolute coords, so it stays 1:1 and drift-free as the window slides under the cursor.",
+    "Quit exposed via right-click context menu because the window is frameless and skips the taskbar (no OS close button).",
+    "Interactions are anchor-coupled; sprite swaps must preserve eye/mouth positions."
+  ],
+  "knownIssues": [
+    {
+      "id": "electron-extract-corruption",
+      "summary": "electron's node-based installer (extract-zip) silently produced a broken Electron.app (50KB stub binary, no Info.plist, no Electron Framework), which broke `npm start`.",
+      "diagnosis": "The cached zip (~/Library/Caches/electron/electron-v33.4.11-darwin-arm64.zip) is valid and complete; system `unzip` extracts all 96 files. The failure is in extract-zip, not the download.",
+      "fix": "Removed node_modules/electron/dist, re-extracted the cached zip with system `unzip` into node_modules/electron/dist, and wrote node_modules/electron/path.txt = 'Electron.app/Contents/MacOS/Electron'. Verify with `./node_modules/.bin/electron --version` (expect v33.4.11).",
+      "status": "resolved 2026-08-03"
+    },
+    {
+      "id": "macos-input-permissions",
+      "summary": "uiohook-napi global hooks need macOS Input Monitoring/Accessibility; not grantable from code.",
+      "status": "user action required (System Settings -> Privacy & Security)"
+    },
+    {
+      "id": "sprite-resolution",
+      "summary": "32x36 is very low for capturing a specific pet's likeness; a future photo->sprite feature likely needs ~48-64 grid.",
+      "status": "open / future"
+    }
+  ],
+  "roadmap": {
+    "now": "Perfect the current single-dog widget (polish interactions, quit, drag).",
+    "next": [
+      "Refactor sprites to data files (sprites/*.json holding grid + palette + anchors) and load them dynamically — foundation for everything below.",
+      "Add a sprite picker / switcher in the app."
+    ],
+    "later": [
+      "Optional menu-bar (tray) icon with Quit/Hide/Show.",
+      "Photo -> pixel-sprite pipeline for custom pets. Recommended: TEMPLATE-BASED (fixed pose + eye/mouth regions; photo drives coat colors/markings/ear-shape) so interactions keep working. Methods considered: (a) deterministic downscale+quantize+bg-removal, (b) AI image-to-image pixel art, (c) hybrid vision-describe -> template.",
+      "Per-pet distribution: a pet is just a small data file to download; no per-pet app rebuild needed once sprites are data-driven."
+    ],
+    "serviceConsiderations": [
+      "User-uploaded photos require content moderation.",
+      "Privacy/consent (pet photos often contain people/faces/locations).",
+      "Per-generation cost and quality/support variance."
+    ]
+  },
+  "howToRun": {
+    "dev": "npm start",
+    "buildMac": "npm run dist:mac",
+    "buildWin": "npm run dist:win",
+    "smokeTest": "launch, confirm 4+ Electron processes and no errors, then quit."
+  }
+}
