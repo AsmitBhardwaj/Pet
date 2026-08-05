@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm, golden-retriever palette */
-  --background: #fffaf2;
-  --surface: #fff4e4;
-  --foreground: #2a2016;
-  --muted: #7a6a55;
-  --border: #efe0c9;
-  --gold: #e8a33d;
-  --gold-deep: #c8801f;
-  --gold-soft: #fbe6c2;
+  /* Strict black & white / grayscale. No accent color exists on purpose —
+     the only color on the page comes from the pet's extracted coat inside
+     the sprite preview frame(s). See CLAUDE.md → Design system. */
+  --background: #000000;
+  --surface: #0b0b0b; /* near-black panel, still grayscale */
+  --foreground: #ffffff;
+  --muted: #888888;
+  --border: #ffffff;
+  --shadow: #555555; /* hard offset button shadow, grayscale */
 }
 
 @theme inline {
@@ -18,34 +18,168 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
-  --color-gold: var(--gold);
-  --color-gold-deep: var(--gold-deep);
-  --color-gold-soft: var(--gold-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-pixel: var(--font-press-start);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #14110c;
-    --surface: #1e1a12;
-    --foreground: #f1e9db;
-    --muted: #a99a83;
-    --border: #2e2718;
-    --gold: #f2b955;
-    --gold-deep: #e8a33d;
-    --gold-soft: #33291a;
-  }
+/* Small pixel paw cursor on interactive elements (nice-to-have; falls back
+   to pointer if the data URI can't load). */
+:root {
+  --cursor-paw: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='24'%20viewBox='0%200%2012%2012'%3E%3Cg%20fill='%23fff'%20stroke='%23000'%20stroke-width='0.6'%3E%3Crect%20x='1.5'%20y='2'%20width='2'%20height='2'/%3E%3Crect%20x='4.5'%20y='1'%20width='2'%20height='2'/%3E%3Crect%20x='7.5'%20y='2'%20width='2'%20height='2'/%3E%3Crect%20x='2.5'%20y='4.5'%20width='6'%20height='5'/%3E%3C/g%3E%3C/svg%3E")
+    4 2, pointer;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* Faint 1px pixel-grid texture behind everything. */
+  background-image: linear-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
-/* Crisp pixels for any pixel-art canvases/images */
+a,
+button,
+.btn-pixel {
+  cursor: var(--cursor-paw);
+}
+
+/* Pixel font helper (kept out of body copy — headings/labels only). */
+.font-pixel {
+  font-family: var(--font-pixel), "Courier New", monospace;
+  letter-spacing: 0;
+}
+
+/* Crisp pixels for sprite art. */
 .pixelated {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+/* ---- Buttons: blocky stepped corners + hard offset shadow (no blur) ---- */
+.btn-pixel {
+  --step: 4px;
+  display: inline-block;
+  font-family: var(--font-pixel), monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 14px 20px;
+  text-align: center;
+  text-decoration: none;
+  /* Stepped/notched corners. */
+  clip-path: polygon(
+    0 var(--step),
+    var(--step) var(--step),
+    var(--step) 0,
+    calc(100% - var(--step)) 0,
+    calc(100% - var(--step)) var(--step),
+    100% var(--step),
+    100% calc(100% - var(--step)),
+    calc(100% - var(--step)) calc(100% - var(--step)),
+    calc(100% - var(--step)) 100%,
+    var(--step) 100%,
+    var(--step) calc(100% - var(--step)),
+    0 calc(100% - var(--step))
+  );
+  /* drop-shadow (not box-shadow) so the hard shadow follows the clip. */
+  filter: drop-shadow(4px 4px 0 var(--shadow));
+  transition: transform 0.08s steps(2, end), filter 0.08s steps(2, end);
+}
+.btn-pixel:hover {
+  transform: translate(-1px, -1px);
+  filter: drop-shadow(5px 5px 0 var(--shadow));
+}
+.btn-pixel:active {
+  transform: translate(2px, 2px);
+  filter: drop-shadow(2px 2px 0 var(--shadow));
+}
+.btn-primary {
+  background: #ffffff;
+  color: #000000;
+}
+.btn-secondary {
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+}
+
+/* ---- Cards: 2px solid white border, sharp corners, no blurred shadow ---- */
+.card-pixel {
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+
+/* ---- Sprite preview framed like a little CRT monitor ---- */
+.pixel-monitor {
+  background: #000;
+  border: 4px solid #fff;
+  padding: 14px;
+  box-shadow: 6px 6px 0 var(--shadow);
+}
+.pixel-screen {
+  position: relative;
+  background: #060606;
+  border: 2px solid #333;
+  padding: 20px;
+  overflow: hidden;
+}
+/* faint scanlines inside the screen only */
+.pixel-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.25) 0,
+    rgba(0, 0, 0, 0.25) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* ---- Full-page CRT overlays (texture only; never block clicks) ---- */
+.crt-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.06) 0,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  animation: crt-scan 8s linear infinite;
+}
+@keyframes crt-scan {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 3px;
+  }
+}
+.crt-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 120% at 50% 50%,
+    transparent 58%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt-scanlines {
+    animation: none;
+  }
 }
