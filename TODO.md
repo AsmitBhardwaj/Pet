@@ -27,9 +27,13 @@ _Last updated: 2026-08-04_
 ## User action required ⚠️
 - [ ] Grant macOS **Input Monitoring** (and likely **Accessibility**) so typing-heat + eye-tracking fire. The in-app permission card now guides this: **Open Settings** (deep-links to the pane) → enable Dodo → **Restart Dodo**. In dev the permission attaches to the terminal app; a packaged build attaches to `Dodo.app`.
 
-## Next 🟡
-- [ ] Make sprites **data-driven**: move `SPRITE` + palette + anchors into `sprites/*.json` and load dynamically. Foundation for multi-pet + downloads.
-- [ ] **Sprite picker** to switch between pets.
+## Custom pets — decided approach: TEMPLATE + TRAITS 🐾
+Chosen 2026-08-04. Photo → Claude vision → small traits JSON → deterministic template renderer → valid sprite. v1 recolors a fixed base shape (anchors never move); markings + ear variants are v2.
+- [x] **Template renderer** (`lib/spriteTemplate.js`) — `buildSprite(traits)` → `{ grid, palette, anchors }` with derived shade/light/outline + `validateSprite()`. Demo: `node scripts/demo-sprite.js`.
+- [ ] Step 3 — **Make the app data-driven**: refactor `renderer/dog.js` to load grid+palette from a sprite object instead of the hardcoded `SPRITE`/`C`. (Base grid currently duplicated in `lib/spriteTemplate.js`; consolidate here.)
+- [ ] Step 4 — **Vision step**: photo → traits JSON via Claude (load the claude-api reference before building).
+- [ ] v2 — markings (chest patch), ear variants (floppy/pointy), more species (cat).
+- [ ] **Sprite picker** + per-pet download (a pet = one small JSON file).
 
 ## Backlog / later 🔭
 - [ ] Optional **menu-bar (tray) icon** with Quit/Hide/Show (needs a small icon asset).
