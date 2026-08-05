@@ -26,7 +26,7 @@
       "note": "Frameless + skipTaskbar means there is NO OS close button; quitting is app-provided (see interactions.quit)."
     },
     "sprite": {
-      "format": "ASCII grid — array of fixed-width strings in renderer/dog.js (const SPRITE), each char mapped through the palette C.",
+      "format": "ASCII grid — array of fixed-width strings, each char mapped through a palette. Now DATA-DRIVEN: renderer/dog.js renders a sprite object { grid, palette, anchors, tintable } via applySprite(); it does not hardcode the grid. The base shape + template renderer live in lib/spriteTemplate.js (UMD: required by main, loaded as window.SpriteTemplate in the renderer). Default pet is built from the template with the original colors. Right-click -> 'Try a pet' pushes example sprites via the set-sprite IPC.",
       "grid": { "width": 32, "height": 36 },
       "scale": 4,
       "canvas": { "width": 128, "height": 144 },
@@ -61,7 +61,8 @@
         { "channel": "typing-tick", "payload": "none", "consumer": "typing-heat tint" },
         { "channel": "app-init", "payload": "{ firstRun, platform } — sent once on did-finish-load", "consumer": "onboarding card decision" },
         { "channel": "permission-needed", "payload": "none", "consumer": "shows the macOS Input Monitoring helper card" },
-        { "channel": "hooks-active", "payload": "none — fired on the first real input event", "consumer": "retracts the permission card (self-correcting)" }
+        { "channel": "hooks-active", "payload": "none — fired on the first real input event", "consumer": "retracts the permission card (self-correcting)" },
+        { "channel": "set-sprite", "payload": "a sprite object { grid, palette, anchors, tintable } from SpriteTemplate.buildSprite()", "consumer": "applySprite() — live-swaps the rendered pet" }
       ],
       "rendererToMain": [
         { "channel": "window-move-by", "payload": "{ dx, dy } — pointer movement deltas", "handler": "moves the frameless window (setPosition) for whole-body dragging" },
