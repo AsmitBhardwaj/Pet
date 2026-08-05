@@ -17,7 +17,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*"
+      "renderer/**/*",
+      "lib/**/*"
     ],
     "mac": {
       "category": "public.app-category.utilities",
