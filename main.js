@@ -1,6 +1,16 @@
 const { app, BrowserWindow, screen, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const SpriteTemplate = require('./lib/spriteTemplate');
+
+// Example pets for the "Try a pet" menu — a live demo of data-driven sprites
+// until the photo -> traits vision step lands. Each is just a traits object.
+const EXAMPLE_PETS = [
+  { label: 'Goldie (golden)', traits: { species: 'dog', coat: { base: '#e0a860', shade: '#b5793a', light: '#f2d19a' }, outline: '#3a2415', nose: '#2a1a10', eye: '#1a1008' } },
+  { label: 'Shadow (black lab)', traits: { species: 'dog', baseCoat: '#2f2a27', nose: '#111111', eye: '#0d0d0d' } },
+  { label: 'Rusty (red setter)', traits: { species: 'dog', baseCoat: '#a34a22', nose: '#241009', eye: '#3a1c0c' } },
+  { label: 'Snow (white samoyed)', traits: { species: 'dog', baseCoat: '#eef0f2', nose: '#2a2a2a', eye: '#3a2a1a' } },
+];
 
 let mainWindow;
 let uIOhook;
@@ -177,6 +187,21 @@ ipcMain.on('window-move-by', (_event, { dx, dy }) => {
 // Right-click menu — the primary way to close the frameless widget.
 ipcMain.on('show-context-menu', () => {
   const menu = Menu.buildFromTemplate([
+    {
+      label: 'Try a pet',
+      submenu: EXAMPLE_PETS.map((p) => ({
+        label: p.label,
+        click: () => {
+          if (mainWindow) {
+            mainWindow.webContents.send(
+              'set-sprite',
+              SpriteTemplate.buildSprite(p.traits)
+            );
+          }
+        },
+      })),
+    },
+    { type: 'separator' },
     { label: 'Quit Dodo', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
   ]);
   menu.popup({ window: mainWindow });

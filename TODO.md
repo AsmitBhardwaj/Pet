@@ -29,8 +29,8 @@ _Last updated: 2026-08-04_
 
 ## Custom pets — decided approach: TEMPLATE + TRAITS 🐾
 Chosen 2026-08-04. Photo → Claude vision → small traits JSON → deterministic template renderer → valid sprite. v1 recolors a fixed base shape (anchors never move); markings + ear variants are v2.
-- [x] **Template renderer** (`lib/spriteTemplate.js`) — `buildSprite(traits)` → `{ grid, palette, anchors }` with derived shade/light/outline + `validateSprite()`. Demo: `node scripts/demo-sprite.js`.
-- [ ] Step 3 — **Make the app data-driven**: refactor `renderer/dog.js` to load grid+palette from a sprite object instead of the hardcoded `SPRITE`/`C`. (Base grid currently duplicated in `lib/spriteTemplate.js`; consolidate here.)
+- [x] **Template renderer** (`lib/spriteTemplate.js`, UMD — Node + browser global) — `buildSprite(traits)` → `{ grid, palette, anchors }` with derived shade/light/outline + `validateSprite()`. Demo: `node scripts/demo-sprite.js`.
+- [x] Step 3 — **App is data-driven**: `renderer/dog.js` renders from a sprite object via `applySprite()` (grid/palette/anchors/tintable), default built from the template (exact original colors). Base grid lives once in `lib/spriteTemplate.js`. Live demo: right-click → **Try a pet** swaps sprites via the `set-sprite` IPC. `lib/**` added to build `files`.
 - [ ] Step 4 — **Vision step**: photo → traits JSON via Claude (load the claude-api reference before building).
 - [ ] v2 — markings (chest patch), ear variants (floppy/pointy), more species (cat).
 - [ ] **Sprite picker** + per-pet download (a pet = one small JSON file).

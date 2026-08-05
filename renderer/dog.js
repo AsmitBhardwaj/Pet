@@ -2,69 +2,45 @@ const canvas = document.getElementById('dog-canvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-// --- pixel-art sprite setup ---
-// The dog is drawn on a 32x36 grid of "pixels". At SCALE=4 that's a
-// 128x144 canvas, giving a small ~80px-wide dog that sits quietly in
-// the corner (matching the reference widget size).
-const GRID_W = 32;
-const GRID_H = 36;
+// --- sprite (data-driven) ---
+// The shape + colors come from a sprite object built by the shared template
+// module (lib/spriteTemplate.js, loaded as the global `window.SpriteTemplate`).
+// This lets the widget render any generated pet, not just a hardcoded dog.
+// A 32x36 grid at SCALE=4 fills the 128x144 canvas.
 const SCALE = 4;
 
-// palette
-const C = {
-  _: null,                 // transparent
-  O: '#3a2415',            // outline / dark brown
-  D: '#b5793a',            // darker golden (shadows, legs)
-  G: '#e0a860',            // main golden coat
-  L: '#f2d19a',            // light golden (chest, muzzle highlight)
-  W: '#ffffff',            // eye white / teeth
-  N: '#2a1a10',            // nose
-  P: '#e8748a',            // tongue (pink)
-  K: '#1a1008',            // pupil / dark
-};
+let SPRITE = [];               // grid rows (each a string of palette letters)
+let C = {};                    // palette: letter -> hex (or null for '.')
+let TINTABLE = ['G', 'L', 'D']; // palette letters typing-heat tints
+let EYES = [];                 // eye anchors [{x,y}] — 3x3 white blocks
+let MOUTH = { x: 15, y: 19 };  // tongue anchor + tongue-pull hit region
+let isEyeCell = () => false;   // derived from EYES
 
-// Sprite map. Each string is one row (32 chars). This is a sitting
-// golden retriever: floppy ears, fluffy chest, front paws together,
-// haunches at the sides. '.' = transparent.
-// Rows are hand-designed so the silhouette reads as a retriever.
-const SPRITE = [
-  '................................',
-  '..............OOOO..............',
-  '............OOGGGGOO............',
-  '...OO......OGGGGGGGGO......OO...',
-  '..ODDO....OGGGGGGGGGGO....ODDO..',
-  '.ODDDDO..OGGGGGGGGGGGGO..ODDDDO.',
-  '.ODDDDDO.OGGGGGGGGGGGGO.ODDDDDO.',
-  '.ODDDDDDOGGGGGGGGGGGGGGODDDDDDO.',
-  '.ODDDDDGGGGGGGGGGGGGGGGGGDDDDDO.',
-  '.ODDDDGGGGGGGGGGGGGGGGGGGGDDDDO.',
-  '.ODDDGGGGWWWGGGGGGGGWWWGGGDDDO..',
-  '..ODDGGGGWKWGGGGGGGGWKWGGGDDO...',
-  '..ODDGGGGWWWGGGGGGGGWWWGGGDDO...',
-  '..OGGGGGGGGGGGGGGGGGGGGGGGGGO...',
-  '..OGGGGGGGGGGGLLLLGGGGGGGGGGO...',
-  '...OGGGGGGGGGLLLLLLGGGGGGGGO....',
-  '...OGGGGGGGGGLLNNLLGGGGGGGGO....',
-  '...OGGGGGGGGGGLNNLGGGGGGGGGO....',
-  '....OGGGGGGGGGLLLLGGGGGGGGO.....',
-  '....OGGGGGGGGGGPPPPGGGGGGGO.....',
-  '.....OGGGGGGGGGGGGGGGGGGGO......',
-  '.....OLLGGGGGGGGGGGGGGGLLO......',
-  '....OLLLLLGGGGGGGGGGGLLLLLO.....',
-  '...OLLLLLLLLLLLLLLLLLLLLLLLO....',
-  '..ODLLLLLLLLLLLLLLLLLLLLLLLDO...',
-  '..ODDLLLLLLLLLLLLLLLLLLLLLLDDO..',
-  '.ODDDLLLLLLLLLLLLLLLLLLLLLDDDO..',
-  '.ODDDDDLLLLLLLLLLLLLLLLLLDDDDO..',
-  '.ODDDDDDLLLLLLLLLLLLLLLLDDDDDO..',
-  '.ODDDDDDGGGGGGGGGGGGGGGGDDDDDO..',
-  '.ODDDDDGGGGGGGGGGGGGGGGGGDDDDO..',
-  '..ODDDOGGGGGGGGGGGGGGGGGGODDDO..',
-  '...OOO.OGGGGGGGGGGGGGGGGO.OOO...',
-  '.......OGGGOGGGGGGGGOGGGO.......',
-  '.......OOOOO......OOOOOO........',
-  '................................',
-];
+// Swap in a sprite (default pet, or a live pick from the tray/menu).
+function applySprite(s) {
+  if (!s || !s.grid || !s.palette || !s.anchors) return;
+  SPRITE = s.grid;
+  C = s.palette;
+  TINTABLE = s.tintable || ['G', 'L', 'D'];
+  EYES = s.anchors.eyes;
+  MOUTH = s.anchors.mouth;
+  // Eyes are drawn dynamically (pupils track the cursor), so drawSprite skips
+  // the 3x3 white block at each eye anchor.
+  isEyeCell = (col, row) =>
+    EYES.some((e) => col >= e.x && col <= e.x + 2 && row >= e.y && row <= e.y + 2);
+}
+
+// Default pet: the original golden retriever (exact original palette).
+applySprite(
+  window.SpriteTemplate.buildSprite({
+    species: 'dog',
+    coat: { base: '#e0a860', shade: '#b5793a', light: '#f2d19a' },
+    outline: '#3a2415',
+    nose: '#2a1a10',
+    eye: '#1a1008',
+    tongue: '#e8748a',
+  })
+);
 
 // --- interaction state ---
 let heat = 0;
@@ -75,15 +51,7 @@ let tailPhase = 0;
 let blinkTimer = 0;
 let blinking = false;
 
-// eye pixel positions (grid coords) derived from the sprite rows above.
-// v3 eyes occupy rows 10-12, cols 9-11 (left) and 19-21 (right).
-const EYES = [
-  { x: 9, y: 10 },  // left eye (3x3 white block)
-  { x: 19, y: 10 }, // right eye
-];
-
-// --- tongue state (anchored at the mouth) ---
-const MOUTH = { x: 15, y: 19 };
+// --- tongue state (anchored at the mouth; MOUTH is set by applySprite) ---
 const TONGUE_MAX_LENGTH = 12;
 const TONGUE_REST_LENGTH = 2;
 let tongueLength = TONGUE_REST_LENGTH;
@@ -130,15 +98,12 @@ function drawSprite() {
       const ch = line[col];
       if (ch === '.') continue;
       // skip the eye cells; the eyes are drawn dynamically below so the
-      // pupils can track the cursor. v3 eyes: rows 10-12, cols 9-11 & 19-21.
-      const isEyeCell =
-        row >= 10 && row <= 12 &&
-        ((col >= 9 && col <= 11) || (col >= 19 && col <= 21));
-      if (isEyeCell) continue;
+      // pupils can track the cursor (derived from the sprite's eye anchors).
+      if (isEyeCell(col, row)) continue;
       const color = C[ch];
       if (!color) continue;
       // tint only the coat colors, not outline/nose/white/tongue
-      const shouldTint = ch === 'G' || ch === 'L' || ch === 'D';
+      const shouldTint = TINTABLE.includes(ch);
       ctx.fillStyle = shouldTint ? tint(color) : color;
       px(col, row);
     }
@@ -322,6 +287,9 @@ if (window.comnyang) {
   window.comnyang.onTypingTick(() => {
     lastTypingTime = performance.now();
   });
+  if (window.comnyang.onSprite) {
+    window.comnyang.onSprite((s) => applySprite(s));
+  }
 }
 
 // --- first-run onboarding + macOS permission helper ---

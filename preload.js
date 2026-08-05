@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('comnyang', {
     ipcRenderer.on('permission-needed', () => callback()),
   onHooksActive: (callback) =>
     ipcRenderer.on('hooks-active', () => callback()),
+  onSprite: (callback) =>
+    ipcRenderer.on('set-sprite', (_event, sprite) => callback(sprite)),
 
   // renderer -> main
   moveBy: (dx, dy) =>
