@@ -121,6 +121,8 @@ function createWindow() {
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  mainWindow.on('closed', () => console.error('[diag] mainWindow closed'));
+
   // Persist the widget's position as the user drags it (debounced, and never
   // while we're in the larger panel mode).
   mainWindow.on('move', () => {
@@ -314,7 +316,10 @@ app.whenReady().then(() => {
   });
 });
 
+process.on('uncaughtException', (e) => console.error('[diag] uncaughtException:', e));
+app.on('before-quit', () => console.error('[diag] before-quit'));
 app.on('window-all-closed', () => {
+  console.error('[diag] window-all-closed');
   if (uIOhook) uIOhook.stop();
   if (process.platform !== 'darwin') app.quit();
 });
