@@ -8,24 +8,24 @@ contextBridge.exposeInMainWorld('comnyang', {
     ipcRenderer.on('typing-tick', () => callback()),
   onAppInit: (callback) =>
     ipcRenderer.on('app-init', (_event, data) => callback(data)),
+  onStartSetup: (callback) =>
+    ipcRenderer.on('start-setup', () => callback()),
   onPermissionNeeded: (callback) =>
     ipcRenderer.on('permission-needed', () => callback()),
   onHooksActive: (callback) =>
     ipcRenderer.on('hooks-active', () => callback()),
-  onSprite: (callback) =>
-    ipcRenderer.on('set-sprite', (_event, sprite) => callback(sprite)),
 
   // renderer -> main
   moveBy: (dx, dy) =>
     ipcRenderer.send('window-move-by', { dx, dy }),
   showContextMenu: () =>
     ipcRenderer.send('show-context-menu'),
-  enterPanel: () =>
-    ipcRenderer.send('ui-enter-panel'),
+  enterPanel: (width, height) =>
+    ipcRenderer.send('ui-enter-panel', width && height ? { width, height } : null),
   exitPanel: () =>
     ipcRenderer.send('ui-exit-panel'),
-  setOnboarded: () =>
-    ipcRenderer.send('set-onboarded'),
+  savePetConfig: (cfg) =>
+    ipcRenderer.invoke('save-pet-config', cfg),
   openInputMonitoringSettings: () =>
     ipcRenderer.send('open-input-monitoring-settings'),
   restartApp: () =>

@@ -287,91 +287,206 @@ if (window.comnyang) {
   window.comnyang.onTypingTick(() => {
     lastTypingTime = performance.now();
   });
-  if (window.comnyang.onSprite) {
-    window.comnyang.onSprite((s) => applySprite(s));
-  }
 }
 
-// --- first-run onboarding + macOS permission helper ---
-(function setupPanels() {
+// --- setup wizard + saved-pet rendering + macOS permission helper ---
+(function setup() {
   const bridge = window.comnyang;
-  if (!bridge) return;
+  if (!bridge) return; // running without the preload bridge (e.g. bare browser)
 
   const panelEl = document.getElementById('panel');
-  const onboardingEl = document.getElementById('onboarding');
+  const setupEl = document.getElementById('setup');
   const permissionEl = document.getElementById('permission');
 
+  // Panel is larger for the setup wizard than for the permission card.
+  const SETUP_SIZE = { w: 420, h: 480 };
+  const PERM_SIZE = { w: 360, h: 260 };
+
   let platform = 'darwin';
-  let onboardingActive = false;
+  let setupActive = false;
   let permissionQueued = false;
 
-  function openCard(which) {
-    document.body.classList.add('panel-open');
-    panelEl.classList.remove('hidden');
-    onboardingEl.classList.toggle('hidden', which !== 'onboarding');
-    permissionEl.classList.toggle('hidden', which !== 'permission');
-    bridge.enterPanel();
+  // Colors that stay fixed regardless of the pet's photo (constraint): only
+  // the coat tones (base/light/shade) come from the photo.
+  const FIXED_COLORS = {
+    outline: '#3a2415',
+    nose: '#2a1a10',
+    eye: '#1a1008',
+    tongue: '#e8748a',
+  };
+
+  // Build a renderable sprite from a saved pet config.
+  function spriteFromConfig(cfg) {
+    return window.SpriteTemplate.buildSprite({
+      species: cfg.species,
+      shape: cfg.shape,
+      coat: cfg.coat,
+      outline: FIXED_COLORS.outline,
+      nose: FIXED_COLORS.nose,
+      eye: FIXED_COLORS.eye,
+      tongue: FIXED_COLORS.tongue,
+    });
   }
 
+  function renderSavedPet(cfg) {
+    applySprite(spriteFromConfig(cfg));
+  }
+
+  // PHASE 1 PLACEHOLDER: real color extraction lands in Phase 2. For now we
+  // ignore the photo's pixels and return a fixed dummy coat so the end-to-end
+  // flow (upload → save → render) can be verified.
+  function extractCoatPalette(_photoDataUrl) {
+    const base = '#c98a4b'; // DUMMY placeholder tan
+    return {
+      base,
+      light: window.SpriteTemplate.shift(base, 0.35),
+      shade: window.SpriteTemplate.shift(base, -0.28),
+    };
+  }
+
+  // --- panel helpers ---
+  function openCard(which, size) {
+    document.body.classList.add('panel-open');
+    panelEl.classList.remove('hidden');
+    setupEl.classList.toggle('hidden', which !== 'setup');
+    permissionEl.classList.toggle('hidden', which !== 'permission');
+    bridge.enterPanel(size.w, size.h);
+  }
   function closePanel() {
     panelEl.classList.add('hidden');
-    onboardingEl.classList.add('hidden');
+    setupEl.classList.add('hidden');
     permissionEl.classList.add('hidden');
     document.body.classList.remove('panel-open');
     bridge.exitPanel();
   }
 
   function showPermission() {
-    // Only macOS gates global input; on other platforms there's nothing to do.
     if (platform !== 'darwin') return;
-    openCard('permission');
+    openCard('permission', PERM_SIZE);
   }
 
-  function finishOnboarding() {
-    onboardingActive = false;
-    bridge.setOnboarded();
-    if (permissionQueued) {
-      permissionQueued = false;
-      showPermission();
-    } else {
+  // --- wizard state + navigation ---
+  const draft = { photo: null, species: null, shape: null };
+  const steps = Array.from(setupEl.querySelectorAll('.step'));
+  function showStep(name) {
+    steps.forEach((s) => s.classList.toggle('hidden', s.dataset.step !== name));
+  }
+
+  function startSetup() {
+    setupActive = true;
+    draft.photo = null;
+    draft.species = null;
+    draft.shape = null;
+    // reset UI
+    photoPreview.classList.add('hidden');
+    photoPreview.removeAttribute('src');
+    dropHint.classList.remove('hidden');
+    photoNext.disabled = true;
+    setupEl.querySelectorAll('.choice.selected').forEach((c) => c.classList.remove('selected'));
+    showStep('photo');
+    openCard('setup', SETUP_SIZE);
+  }
+
+  function finishSetup() {
+    const cfg = {
+      version: 1,
+      species: draft.species,
+      shape: draft.species === 'dog' ? draft.shape : null,
+      coat: extractCoatPalette(draft.photo),
+    };
+    Promise.resolve(bridge.savePetConfig(cfg)).finally(() => {
+      setupActive = false;
+      renderSavedPet(cfg);
       closePanel();
-    }
+      if (permissionQueued) {
+        permissionQueued = false;
+        showPermission();
+      }
+    });
   }
 
-  bridge.onAppInit(({ firstRun, platform: plat }) => {
-    if (plat) platform = plat;
-    if (firstRun) {
-      onboardingActive = true;
-      openCard('onboarding');
-    }
+  // --- photo step (drag-drop + file picker) ---
+  const dropzone = document.getElementById('dropzone');
+  const photoInput = document.getElementById('photo-input');
+  const photoPreview = document.getElementById('photo-preview');
+  const dropHint = dropzone.querySelector('.drop-hint');
+  const photoNext = document.getElementById('photo-next');
+
+  function loadPhotoFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      draft.photo = reader.result; // data URL (used for extraction in Phase 2)
+      photoPreview.src = reader.result;
+      photoPreview.classList.remove('hidden');
+      dropHint.classList.add('hidden');
+      photoNext.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  photoInput.addEventListener('change', (e) => loadPhotoFile(e.target.files[0]));
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
   });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    loadPhotoFile(e.dataTransfer.files[0]);
+  });
+  photoNext.addEventListener('click', () => showStep('species'));
+
+  // --- species step ---
+  setupEl.querySelectorAll('[data-species]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      draft.species = btn.dataset.species;
+      showStep(draft.species === 'dog' ? 'shape' : 'create');
+    });
+  });
+
+  // --- shape step (dog only) ---
+  setupEl.querySelectorAll('[data-shape]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      draft.shape = btn.dataset.shape;
+      setupEl.querySelectorAll('[data-shape]').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      showStep('create');
+    });
+  });
+
+  // --- back buttons ---
+  setupEl.querySelectorAll('[data-back]').forEach((btn) => {
+    btn.addEventListener('click', () => showStep(btn.dataset.back));
+  });
+  document.getElementById('create-back').addEventListener('click', () => {
+    showStep(draft.species === 'dog' ? 'shape' : 'species');
+  });
+  document.getElementById('create-go').addEventListener('click', finishSetup);
+
+  // --- app lifecycle ---
+  bridge.onAppInit(({ petConfig, platform: plat }) => {
+    if (plat) platform = plat;
+    if (petConfig) renderSavedPet(petConfig);
+    else startSetup();
+  });
+  bridge.onStartSetup(() => startSetup());
 
   bridge.onPermissionNeeded(() => {
-    // Defer the permission card until after onboarding, if that's open.
-    if (onboardingActive) permissionQueued = true;
+    // Defer the permission card until setup is finished, if it's open.
+    if (setupActive) permissionQueued = true;
     else showPermission();
   });
-
   bridge.onHooksActive(() => {
-    // Reactions are working — retract any pending/visible permission prompt.
     permissionQueued = false;
-    if (!onboardingActive && !permissionEl.classList.contains('hidden')) {
-      closePanel();
-    }
+    if (!setupActive && !permissionEl.classList.contains('hidden')) closePanel();
   });
 
-  document
-    .getElementById('onboarding-ok')
-    .addEventListener('click', finishOnboarding);
-  document
-    .getElementById('perm-open')
-    .addEventListener('click', () => bridge.openInputMonitoringSettings());
-  document
-    .getElementById('perm-restart')
-    .addEventListener('click', () => bridge.restartApp());
-  document
-    .getElementById('perm-dismiss')
-    .addEventListener('click', closePanel);
+  // permission card buttons
+  document.getElementById('perm-open').addEventListener('click', () => bridge.openInputMonitoringSettings());
+  document.getElementById('perm-restart').addEventListener('click', () => bridge.restartApp());
+  document.getElementById('perm-dismiss').addEventListener('click', closePanel);
 })();
 
 requestAnimationFrame(tick);

@@ -10,15 +10,58 @@
 
   <!-- Cards shown in the temporary larger "panel mode" -->
   <div id="panel" class="hidden">
-    <div id="onboarding" class="card hidden">
-      <div class="card-emoji">🐶</div>
-      <h1>Hi, I'm Dodo!</h1>
-      <ul>
-        <li><b>Drag me</b> anywhere on your screen</li>
-        <li><b>Right-click</b> me to quit</li>
-        <li>I react to your <b>mouse &amp; typing</b></li>
-      </ul>
-      <button id="onboarding-ok">Got it</button>
+    <!-- Setup wizard (first launch / "Change pet photo") -->
+    <div id="setup" class="card hidden">
+      <!-- step 1: photo -->
+      <div class="step" data-step="photo">
+        <div class="card-emoji">📷</div>
+        <h1>Show me your pet</h1>
+        <p>Upload a clear photo — I'll match my colors to them.</p>
+        <label id="dropzone">
+          <span class="drop-hint">Drag a photo here<br />or click to choose</span>
+          <img id="photo-preview" class="hidden" alt="" />
+          <input id="photo-input" type="file" accept="image/*" hidden />
+        </label>
+        <div class="btn-row">
+          <button id="photo-next" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- step 2: species -->
+      <div class="step hidden" data-step="species">
+        <h1>What are they?</h1>
+        <div class="choice-row">
+          <button class="choice" data-species="dog"><span class="ce">🐶</span>Dog</button>
+          <button class="choice" data-species="cat"><span class="ce">🐱</span>Cat</button>
+          <button class="choice" data-species="bear"><span class="ce">🐻</span>Bear</button>
+        </div>
+        <div class="btn-row">
+          <button class="secondary" data-back="photo">Back</button>
+        </div>
+      </div>
+
+      <!-- step 3: shape (dog only) -->
+      <div class="step hidden" data-step="shape">
+        <h1>Ear shape</h1>
+        <div class="choice-row">
+          <button class="choice" data-shape="floppy"><span class="ce">👂</span>Floppy</button>
+          <button class="choice" data-shape="pointy"><span class="ce">📐</span>Pointy</button>
+        </div>
+        <div class="btn-row">
+          <button class="secondary" data-back="species">Back</button>
+        </div>
+      </div>
+
+      <!-- step 4: create -->
+      <div class="step hidden" data-step="create">
+        <div class="card-emoji">🐾</div>
+        <h1>Meet your pet</h1>
+        <p>Drag me anywhere • Right-click me to quit. You can change my photo anytime from the right-click menu.</p>
+        <div class="btn-row">
+          <button class="secondary" id="create-back">Back</button>
+          <button id="create-go">Create my pet</button>
+        </div>
+      </div>
     </div>
 
     <div id="permission" class="card hidden">

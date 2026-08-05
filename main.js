@@ -1,16 +1,6 @@
 const { app, BrowserWindow, screen, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const SpriteTemplate = require('./lib/spriteTemplate');
-
-// Example pets for the "Try a pet" menu — a live demo of data-driven sprites
-// until the photo -> traits vision step lands. Each is just a traits object.
-const EXAMPLE_PETS = [
-  { label: 'Goldie (golden)', traits: { species: 'dog', coat: { base: '#e0a860', shade: '#b5793a', light: '#f2d19a' }, outline: '#3a2415', nose: '#2a1a10', eye: '#1a1008' } },
-  { label: 'Shadow (black lab)', traits: { species: 'dog', baseCoat: '#2f2a27', nose: '#111111', eye: '#0d0d0d' } },
-  { label: 'Rusty (red setter)', traits: { species: 'dog', baseCoat: '#a34a22', nose: '#241009', eye: '#3a1c0c' } },
-  { label: 'Snow (white samoyed)', traits: { species: 'dog', baseCoat: '#eef0f2', nose: '#2a2a2a', eye: '#3a2a1a' } },
-];
 
 let mainWindow;
 let uIOhook;
@@ -49,6 +39,30 @@ function writeSettings(patch) {
     console.error('[Dodo] could not save settings:', e.message);
   }
   return next;
+}
+
+// --- the user's pet (userData/pet-config.json) ---
+// Separate from settings.json: this is the pet's identity (species, shape,
+// extracted coat palette). Its presence is what marks a completed onboarding.
+function petConfigFile() {
+  return path.join(app.getPath('userData'), 'pet-config.json');
+}
+function readPetConfig() {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(petConfigFile(), 'utf8'));
+    return cfg && cfg.species ? cfg : null;
+  } catch (e) {
+    return null;
+  }
+}
+function writePetConfig(cfg) {
+  try {
+    fs.writeFileSync(petConfigFile(), JSON.stringify(cfg, null, 2));
+    return true;
+  } catch (e) {
+    console.error('[Dodo] could not save pet config:', e.message);
+    return false;
+  }
 }
 
 // --- window position helpers ---
@@ -123,12 +137,11 @@ function createWindow() {
     writeSettings({ pos: { x, y } });
   });
 
-  // Once the page is ready, tell it whether this is a first run and hand over
+  // Once the page is ready, hand over the saved pet (or null → run setup) and
   // any permission warning that fired before the renderer existed.
   mainWindow.webContents.once('did-finish-load', () => {
-    const s = readSettings();
     mainWindow.webContents.send('app-init', {
-      firstRun: !s.onboarded,
+      petConfig: readPetConfig(),
       platform: process.platform,
     });
     if (permissionNeeded) mainWindow.webContents.send('permission-needed');
@@ -144,22 +157,29 @@ function setWindowBounds(bounds) {
   mainWindow.setResizable(false);
 }
 
-function enterPanelMode() {
-  if (!mainWindow || panelMode) return;
-  const [wx, wy] = mainWindow.getPosition();
-  widgetBounds = { x: wx, y: wy };
-  panelMode = true;
+function enterPanelMode(size) {
+  if (!mainWindow) return;
+  const pw = (size && size.width) || PANEL_WIDTH;
+  const ph = (size && size.height) || PANEL_HEIGHT;
+  if (!panelMode) {
+    const [wx, wy] = mainWindow.getPosition();
+    widgetBounds = { x: wx, y: wy };
+    panelMode = true;
+  }
   // Center the card on whichever display the widget is currently on.
+  const anchor = widgetBounds || mainWindow.getPosition();
+  const ax = Array.isArray(anchor) ? anchor[0] : anchor.x;
+  const ay = Array.isArray(anchor) ? anchor[1] : anchor.y;
   const disp = screen.getDisplayNearestPoint({
-    x: wx + WIN_WIDTH / 2,
-    y: wy + WIN_HEIGHT / 2,
+    x: ax + WIN_WIDTH / 2,
+    y: ay + WIN_HEIGHT / 2,
   });
   const wa = disp.workArea;
   setWindowBounds({
-    x: Math.round(wa.x + (wa.width - PANEL_WIDTH) / 2),
-    y: Math.round(wa.y + (wa.height - PANEL_HEIGHT) / 2),
-    width: PANEL_WIDTH,
-    height: PANEL_HEIGHT,
+    x: Math.round(wa.x + (wa.width - pw) / 2),
+    y: Math.round(wa.y + (wa.height - ph) / 2),
+    width: pw,
+    height: ph,
   });
 }
 
@@ -188,18 +208,10 @@ ipcMain.on('window-move-by', (_event, { dx, dy }) => {
 ipcMain.on('show-context-menu', () => {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'Try a pet',
-      submenu: EXAMPLE_PETS.map((p) => ({
-        label: p.label,
-        click: () => {
-          if (mainWindow) {
-            mainWindow.webContents.send(
-              'set-sprite',
-              SpriteTemplate.buildSprite(p.traits)
-            );
-          }
-        },
-      })),
+      label: 'Change pet photo…',
+      click: () => {
+        if (mainWindow) mainWindow.webContents.send('start-setup');
+      },
     },
     { type: 'separator' },
     { label: 'Quit Dodo', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
@@ -207,9 +219,12 @@ ipcMain.on('show-context-menu', () => {
   menu.popup({ window: mainWindow });
 });
 
-ipcMain.on('ui-enter-panel', enterPanelMode);
+ipcMain.on('ui-enter-panel', (_event, size) => enterPanelMode(size));
 ipcMain.on('ui-exit-panel', exitPanelMode);
-ipcMain.on('set-onboarded', () => writeSettings({ onboarded: true }));
+
+// Persist the pet the setup wizard produced; returns success so the renderer
+// can await before rendering.
+ipcMain.handle('save-pet-config', (_event, cfg) => writePetConfig(cfg));
 
 ipcMain.on('open-input-monitoring-settings', () => {
   if (process.platform === 'darwin') {
