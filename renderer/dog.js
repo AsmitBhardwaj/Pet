@@ -289,25 +289,25 @@ if (window.comnyang) {
   });
 }
 
-// --- setup wizard + saved-pet rendering + macOS permission helper ---
+// --- config import + saved-pet rendering + macOS permission helper ---
 (function setup() {
   const bridge = window.comnyang;
   if (!bridge) return; // running without the preload bridge (e.g. bare browser)
 
   const panelEl = document.getElementById('panel');
-  const setupEl = document.getElementById('setup');
+  const importEl = document.getElementById('import');
   const permissionEl = document.getElementById('permission');
 
-  // Panel is larger for the setup wizard than for the permission card.
-  const SETUP_SIZE = { w: 420, h: 480 };
+  // Both cards are small now — the import card is a single dropzone step.
+  const IMPORT_SIZE = { w: 340, h: 320 };
   const PERM_SIZE = { w: 360, h: 260 };
 
   let platform = 'darwin';
-  let setupActive = false;
+  let importActive = false;
   let permissionQueued = false;
 
-  // Colors that stay fixed regardless of the pet's photo (constraint): only
-  // the coat tones (base/light/shade) come from the photo.
+  // Colors that stay fixed regardless of the pet (constraint): only the coat
+  // tones (base/light/shade) come from the imported config.
   const FIXED_COLORS = {
     outline: '#3a2415',
     nose: '#2a1a10',
@@ -332,29 +332,17 @@ if (window.comnyang) {
     applySprite(spriteFromConfig(cfg));
   }
 
-  // PHASE 1 PLACEHOLDER: real color extraction lands in Phase 2. For now we
-  // ignore the photo's pixels and return a fixed dummy coat so the end-to-end
-  // flow (upload → save → render) can be verified.
-  function extractCoatPalette(_photoDataUrl) {
-    const base = '#c98a4b'; // DUMMY placeholder tan
-    return {
-      base,
-      light: window.SpriteTemplate.shift(base, 0.35),
-      shade: window.SpriteTemplate.shift(base, -0.28),
-    };
-  }
-
   // --- panel helpers ---
   function openCard(which, size) {
     document.body.classList.add('panel-open');
     panelEl.classList.remove('hidden');
-    setupEl.classList.toggle('hidden', which !== 'setup');
+    importEl.classList.toggle('hidden', which !== 'import');
     permissionEl.classList.toggle('hidden', which !== 'permission');
     bridge.enterPanel(size.w, size.h);
   }
   function closePanel() {
     panelEl.classList.add('hidden');
-    setupEl.classList.add('hidden');
+    importEl.classList.add('hidden');
     permissionEl.classList.add('hidden');
     document.body.classList.remove('panel-open');
     bridge.exitPanel();
@@ -365,67 +353,70 @@ if (window.comnyang) {
     openCard('permission', PERM_SIZE);
   }
 
-  // --- wizard state + navigation ---
-  const draft = { photo: null, species: null, shape: null };
-  const steps = Array.from(setupEl.querySelectorAll('.step'));
-  function showStep(name) {
-    steps.forEach((s) => s.classList.toggle('hidden', s.dataset.step !== name));
-  }
-
-  function startSetup() {
-    setupActive = true;
-    draft.photo = null;
-    draft.species = null;
-    draft.shape = null;
-    // reset UI
-    photoPreview.classList.add('hidden');
-    photoPreview.removeAttribute('src');
-    dropHint.classList.remove('hidden');
-    photoNext.disabled = true;
-    setupEl.querySelectorAll('.choice.selected').forEach((c) => c.classList.remove('selected'));
-    showStep('photo');
-    openCard('setup', SETUP_SIZE);
-  }
-
-  function finishSetup() {
-    const cfg = {
-      version: 1,
-      species: draft.species,
-      shape: draft.species === 'dog' ? draft.shape : null,
-      coat: extractCoatPalette(draft.photo),
-    };
-    Promise.resolve(bridge.savePetConfig(cfg)).finally(() => {
-      setupActive = false;
-      renderSavedPet(cfg);
-      closePanel();
-      if (permissionQueued) {
-        permissionQueued = false;
-        showPermission();
-      }
-    });
-  }
-
-  // --- photo step (drag-drop + file picker) ---
+  // --- import step: read the .json pet config the website generates ---
   const dropzone = document.getElementById('dropzone');
-  const photoInput = document.getElementById('photo-input');
-  const photoPreview = document.getElementById('photo-preview');
-  const dropHint = dropzone.querySelector('.drop-hint');
-  const photoNext = document.getElementById('photo-next');
+  const configInput = document.getElementById('config-input');
+  const importError = document.getElementById('import-error');
 
-  function loadPhotoFile(file) {
-    if (!file || !file.type.startsWith('image/')) return;
+  function startImport() {
+    importActive = true;
+    importError.classList.add('hidden');
+    importError.textContent = '';
+    configInput.value = ''; // allow re-selecting the same file
+    openCard('import', IMPORT_SIZE);
+  }
+
+  function showImportError(msg) {
+    importError.textContent = msg;
+    importError.classList.remove('hidden');
+  }
+
+  // Expected shape: { version, species, shape, coat: { base, light, shade } }.
+  // shape is null for species without variants (cat/bear); species and the
+  // coat tones are load-bearing for rendering, so those are validated strictly.
+  function isValidConfig(cfg) {
+    if (!cfg || typeof cfg !== 'object') return false;
+    if (typeof cfg.species !== 'string' || !cfg.species) return false;
+    const coat = cfg.coat;
+    if (!coat || typeof coat !== 'object') return false;
+    return (
+      typeof coat.base === 'string' &&
+      typeof coat.light === 'string' &&
+      typeof coat.shade === 'string'
+    );
+  }
+
+  function loadConfigFile(file) {
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      draft.photo = reader.result; // data URL (used for extraction in Phase 2)
-      photoPreview.src = reader.result;
-      photoPreview.classList.remove('hidden');
-      dropHint.classList.add('hidden');
-      photoNext.disabled = false;
+      let cfg;
+      try {
+        cfg = JSON.parse(reader.result);
+      } catch (e) {
+        showImportError("That file isn't valid JSON. Download a pet file from the Dodo website and try again.");
+        return;
+      }
+      if (!isValidConfig(cfg)) {
+        showImportError("That doesn't look like a Dodo pet file. Make sure you picked the .json you downloaded.");
+        return;
+      }
+      importError.classList.add('hidden');
+      Promise.resolve(bridge.savePetConfig(cfg)).finally(() => {
+        importActive = false;
+        renderSavedPet(cfg);
+        closePanel();
+        if (permissionQueued) {
+          permissionQueued = false;
+          showPermission();
+        }
+      });
     };
-    reader.readAsDataURL(file);
+    reader.onerror = () => showImportError("Couldn't read that file. Try again.");
+    reader.readAsText(file);
   }
 
-  photoInput.addEventListener('change', (e) => loadPhotoFile(e.target.files[0]));
+  configInput.addEventListener('change', (e) => loadConfigFile(e.target.files[0]));
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropzone.classList.add('dragover');
@@ -434,53 +425,25 @@ if (window.comnyang) {
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.classList.remove('dragover');
-    loadPhotoFile(e.dataTransfer.files[0]);
+    loadConfigFile(e.dataTransfer.files[0]);
   });
-  photoNext.addEventListener('click', () => showStep('species'));
-
-  // --- species step ---
-  setupEl.querySelectorAll('[data-species]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      draft.species = btn.dataset.species;
-      showStep(draft.species === 'dog' ? 'shape' : 'create');
-    });
-  });
-
-  // --- shape step (dog only) ---
-  setupEl.querySelectorAll('[data-shape]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      draft.shape = btn.dataset.shape;
-      setupEl.querySelectorAll('[data-shape]').forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      showStep('create');
-    });
-  });
-
-  // --- back buttons ---
-  setupEl.querySelectorAll('[data-back]').forEach((btn) => {
-    btn.addEventListener('click', () => showStep(btn.dataset.back));
-  });
-  document.getElementById('create-back').addEventListener('click', () => {
-    showStep(draft.species === 'dog' ? 'shape' : 'species');
-  });
-  document.getElementById('create-go').addEventListener('click', finishSetup);
 
   // --- app lifecycle ---
   bridge.onAppInit(({ petConfig, platform: plat }) => {
     if (plat) platform = plat;
     if (petConfig) renderSavedPet(petConfig);
-    else startSetup();
+    else startImport();
   });
-  bridge.onStartSetup(() => startSetup());
+  bridge.onStartSetup(() => startImport());
 
   bridge.onPermissionNeeded(() => {
-    // Defer the permission card until setup is finished, if it's open.
-    if (setupActive) permissionQueued = true;
+    // Defer the permission card until import is finished, if it's open.
+    if (importActive) permissionQueued = true;
     else showPermission();
   });
   bridge.onHooksActive(() => {
     permissionQueued = false;
-    if (!setupActive && !permissionEl.classList.contains('hidden')) closePanel();
+    if (!importActive && !permissionEl.classList.contains('hidden')) closePanel();
   });
 
   // permission card buttons

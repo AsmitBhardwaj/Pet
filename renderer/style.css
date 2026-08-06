@@ -155,8 +155,8 @@ body.panel-open #drag-handle {
   justify-content: center;
 }
 
-/* --- setup wizard --- */
-#setup .step {
+/* --- import card --- */
+#import {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -167,8 +167,8 @@ body.panel-open #drag-handle {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 140px;
-  margin: 4px 0 14px;
+  height: 120px;
+  margin: 4px 0 10px;
   border: 2px dashed rgba(224, 168, 96, 0.5);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
@@ -187,50 +187,12 @@ body.panel-open #drag-handle {
   text-align: center;
   pointer-events: none;
 }
-#photo-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
-.choice-row {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin: 4px 0 14px;
-  flex-wrap: wrap;
-}
-.choice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 84px;
-  padding: 14px 8px;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #f3ead9;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.05s;
-}
-.choice:hover {
-  background: rgba(224, 168, 96, 0.16);
-  border-color: rgba(224, 168, 96, 0.6);
-}
-.choice:active {
-  transform: scale(0.97);
-}
-.choice.selected {
-  background: rgba(224, 168, 96, 0.22);
-  border-color: #e0a860;
-}
-.choice .ce {
-  font-size: 26px;
-  line-height: 1;
+.card .error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f0a58f;
 }
 
 .card button:disabled {
