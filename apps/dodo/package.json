@@ -7,10 +7,10 @@
   "scripts": {
     "build:renderer": "esbuild renderer/dog.js --bundle --format=iife --outfile=renderer/dog.bundle.js",
     "start": "npm run build:renderer && electron .",
-    "dist": "npm run build:renderer && electron-builder",
-    "dist:mac": "npm run build:renderer && electron-builder --mac",
-    "dist:win": "npm run build:renderer && electron-builder --win",
-    "dist:all": "npm run build:renderer && electron-builder --mac --win"
+    "dist": "npm run build:renderer && node scripts/package.mjs",
+    "dist:mac": "npm run build:renderer && node scripts/package.mjs --mac",
+    "dist:win": "npm run build:renderer && node scripts/package.mjs --win",
+    "dist:all": "npm run build:renderer && node scripts/package.mjs --mac --win"
   },
   "build": {
     "appId": "com.asmit.Dodo",
@@ -46,12 +46,12 @@
     }
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "33.4.11",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "sprite-core": "*"
   },
   "dependencies": {
-    "sprite-core": "*",
     "uiohook-napi": "^1.5.4"
   }
 }
