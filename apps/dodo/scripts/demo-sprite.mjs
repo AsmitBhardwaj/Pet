@@ -1,7 +1,7 @@
 // Demo: turn a few example "traits" (what the vision step will output) into
 // sprites, validate them, and print the derived palettes.
-//   node scripts/demo-sprite.js
-const { buildSprite, validateSprite } = require('../lib/spriteTemplate');
+//   node apps/dodo/scripts/demo-sprite.mjs   (or: npm run demo:sprite)
+import { buildSprite, validateSprite } from 'sprite-core';
 
 // Each of these is the kind of tiny JSON a vision model would extract from a
 // pet photo. Note how little is needed — shade/light/outline are derived.

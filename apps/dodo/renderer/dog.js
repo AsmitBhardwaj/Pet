@@ -1,11 +1,19 @@
+import {
+  buildSprite,
+  drawSprite,
+  drawEyes,
+  drawTongue,
+  lerp,
+} from 'sprite-core';
+
 const canvas = document.getElementById('dog-canvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 // --- sprite (data-driven) ---
-// The shape + colors come from a sprite object built by the shared template
-// module (lib/spriteTemplate.js, loaded as the global `window.SpriteTemplate`).
-// This lets the widget render any generated pet, not just a hardcoded dog.
+// The shape + colors come from a sprite object built by the shared sprite-core
+// package (imported above; esbuild bundles it into the renderer). This lets the
+// widget render any generated pet, not just a hardcoded dog.
 // A 32x36 grid at SCALE=4 fills the 128x144 canvas.
 const SCALE = 4;
 
@@ -32,7 +40,7 @@ function applySprite(s) {
 
 // Default pet: the original golden retriever (exact original palette).
 applySprite(
-  window.SpriteTemplate.buildSprite({
+  buildSprite({
     species: 'dog',
     coat: { base: '#e0a860', shade: '#b5793a', light: '#f2d19a' },
     outline: '#3a2415',
@@ -61,105 +69,31 @@ let tongueVelocity = 0;
 let isDragging = false;        // pulling the tongue
 let isWindowDragging = false;  // moving the whole window
 
-function lerp(a, b, t) { return a + (b - a) * t; }
-
-function lerpColor(a, b, t) {
-  return [
-    Math.round(lerp(a[0], b[0], t)),
-    Math.round(lerp(a[1], b[1], t)),
-    Math.round(lerp(a[2], b[2], t)),
-  ];
-}
-
-// Heat tints the golden coat toward warm red as you type.
-function tint(hex) {
-  if (heat <= 0.01) return hex;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const hot = [214, 60, 32];
-  const [nr, ng, nb] = lerpColor([r, g, b], hot, heat * 0.6);
-  return `rgb(${nr}, ${ng}, ${nb})`;
-}
-
-function px(x, y, w = 1, h = 1) {
-  ctx.fillRect(
-    Math.round(x * SCALE),
-    Math.round(y * SCALE),
-    Math.round(w * SCALE),
-    Math.round(h * SCALE)
-  );
-}
-
-function drawSprite() {
-  for (let row = 0; row < SPRITE.length; row++) {
-    const line = SPRITE[row];
-    for (let col = 0; col < line.length; col++) {
-      const ch = line[col];
-      if (ch === '.') continue;
-      // skip the eye cells; the eyes are drawn dynamically below so the
-      // pupils can track the cursor (derived from the sprite's eye anchors).
-      if (isEyeCell(col, row)) continue;
-      const color = C[ch];
-      if (!color) continue;
-      // tint only the coat colors, not outline/nose/white/tongue
-      const shouldTint = TINTABLE.includes(ch);
-      ctx.fillStyle = shouldTint ? tint(color) : color;
-      px(col, row);
-    }
-  }
-}
-
-function drawEyes() {
-  const dir = Math.atan2(cursorDY, cursorDX);
-  // pupil can shift within the 3x3 white by up to 1 cell toward the cursor
-  const ox = Math.max(-1, Math.min(1, Math.round(Math.cos(dir))));
-  const oy = Math.max(-1, Math.min(1, Math.round(Math.sin(dir) * 0.7)));
-  for (const eye of EYES) {
-    if (!blinking) {
-      // 3x3 white
-      ctx.fillStyle = C.W;
-      px(eye.x, eye.y, 3, 3);
-      // 1x1 pupil, centered then nudged toward the cursor
-      ctx.fillStyle = C.K;
-      px(eye.x + 1 + ox, eye.y + 1 + oy, 1, 1);
-    } else {
-      // closed eye: a soft dark line across the middle row
-      ctx.fillStyle = C.O;
-      px(eye.x, eye.y + 1, 3, 1);
-    }
-  }
-}
-
-function drawTongue() {
-  const segments = Math.max(2, Math.round(tongueLength));
-  for (let i = 0; i < segments; i++) {
-    const t = (i / segments) * tongueLength;
-    const gx = MOUTH.x + tongueDirX * t;
-    const gy = MOUTH.y + tongueDirY * t;
-    ctx.fillStyle = C.P;
-    px(gx - 1, gy, 2, 1.1);
-  }
-  // rounded tip
-  const tipX = MOUTH.x + tongueDirX * tongueLength;
-  const tipY = MOUTH.y + tongueDirY * tongueLength;
-  ctx.fillStyle = C.P;
-  px(tipX - 1.5, tipY - 0.5, 3, 2);
-  // center crease
-  ctx.fillStyle = '#c65670';
-  for (let i = 0; i < segments; i++) {
-    const t = (i / segments) * tongueLength;
-    const gx = MOUTH.x + tongueDirX * t;
-    const gy = MOUTH.y + tongueDirY * t;
-    px(gx - 0.15, gy, 0.3, 1);
-  }
+// Bundle the current sprite + interaction state into the plain object the
+// sprite-core renderer expects (it takes a ctx + this state, nothing else).
+function spriteState() {
+  return {
+    grid: SPRITE,
+    palette: C,
+    tintable: TINTABLE,
+    scale: SCALE,
+    heat,
+    isEyeCell,
+    eyes: EYES,
+    mouth: MOUTH,
+    cursorDX,
+    cursorDY,
+    blinking,
+    tongue: { length: tongueLength, dirX: tongueDirX, dirY: tongueDirY },
+  };
 }
 
 function drawDog() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawTongue();  // behind the head so it comes "out" of the mouth
-  drawSprite();
-  drawEyes();
+  const state = spriteState();
+  drawTongue(ctx, state);  // behind the head so it comes "out" of the mouth
+  drawSprite(ctx, state);
+  drawEyes(ctx, state);
 }
 
 function updateTongue() {
@@ -317,7 +251,7 @@ if (window.comnyang) {
 
   // Build a renderable sprite from a saved pet config.
   function spriteFromConfig(cfg) {
-    return window.SpriteTemplate.buildSprite({
+    return buildSprite({
       species: cfg.species,
       shape: cfg.shape,
       coat: cfg.coat,
