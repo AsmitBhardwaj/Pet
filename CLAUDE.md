@@ -86,6 +86,16 @@ places. Do not recreate that.
   - Canvas is `no-drag` (needed so the tongue can capture pointer
     events). Window dragging currently only works via a small
     translucent tab at the top.
+  - Onboarding (first launch, no saved `petConfig`): the renderer shows a
+    single **import step** — a plain `<input type="file">` dropzone that
+    reads the website-generated `.json`
+    (`{ version, species, shape, coat: { base, light, shade } }`),
+    validates it, then `savePetConfig` → `renderSavedPet` (both unchanged).
+    The old in-app setup wizard (photo upload, species/shape picker,
+    placeholder color extraction) has been removed. File-picking is
+    renderer-side only — **no** native `dialog.showOpenDialog` IPC was
+    added. Stale: the `main.js` right-click label "Change pet photo…" still
+    opens this import card and needs a rename-vs-leave decision.
 
 ## dodo-web (apps/dodo-web)
 
@@ -125,10 +135,19 @@ separate reimplementation.
 - Electron app: functional prototype (cursor tracking, tongue physics,
   heat tinting, idle blink/tail). Full-body window dragging NOT yet
   implemented — only a small handle tab works.
+- Electron onboarding: the in-app setup wizard has been removed; first
+  launch now shows a single JSON-config import step (validate →
+  `savePetConfig` → `renderSavedPet`). Renderer `<input type="file">`, no
+  native file-dialog IPC.
 - Only two sprite shapes exist so far: the original pointy-eared shape
   (now slated to become the Bear) and one floppy-eared retriever shape.
   The 2nd dog shape (shepherd-build) and the cat shape are not yet made.
-- dodo-web: not yet started / placeholder only.
+- dodo-web: Phase 1 built — Next.js/Tailwind (JavaScript) scaffold +
+  landing page, restyled to the retro B&W pixel theme; pushed to public
+  GitHub repo `AsmitBhardwaj/dodo-web` (Vercel deploy left for the user to
+  connect/confirm). Built standalone — it uses its own placeholder
+  `PixelDodo`, NOT `sprite-core` (see Open issues #2/#3). Phases 2–4 not
+  yet built.
 - sprite-core package: not yet extracted — sprite/palette logic still
   lives inside `apps/dodo`'s renderer, and a placeholder duplicate may
   exist in dodo-web scaffolding. Extracting this into a real shared
@@ -147,6 +166,10 @@ separate reimplementation.
 3. Build dodo-web Phase 1 (scaffold + Vercel deploy) importing
    sprite-core for its placeholder preview from day one — don't let a
    second placeholder implementation happen.
+   — DONE (scaffold + landing + B&W redesign, pushed to GitHub), BUT it
+   was built standalone and does NOT import `sprite-core` yet; it has its
+   own placeholder `PixelDodo`. Reconcile when sprite-core is extracted
+   (#2) so the second placeholder doesn't linger.
 4. Build the remaining shape templates: 2nd dog shape (shepherd-build),
    1 cat shape.
 5. dodo-web Phases 2-4: upload + color extraction, species/shape picker
@@ -158,6 +181,12 @@ separate reimplementation.
    dragging.)
 7. Wire up the Electron app's onboarding flow to import the JSON config
    exported by the website.
+   — App side DONE: first launch shows a single import step that reads and
+   validates the `.json` and saves it (`savePetConfig` → `renderSavedPet`),
+   replacing the removed setup wizard; renderer `<input type="file">`, no
+   native dialog IPC. Remaining: (a) dodo-web must actually generate/export
+   that `.json` (Phase 4); (b) decide whether to rename the stale `main.js`
+   "Change pet photo…" right-click menu label.
 
 ## Design system (dodo-web)
 
