@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "start": "npm start --workspace apps/dodo",
+    "dev:web": "npm run dev --workspace apps/dodo-web",
+    "build:web": "npm run build --workspace apps/dodo-web",
     "build:renderer": "npm run build:renderer --workspace apps/dodo",
     "dist:mac": "npm run dist:mac --workspace apps/dodo",
     "dist:win": "npm run dist:win --workspace apps/dodo",
