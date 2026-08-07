@@ -13,6 +13,11 @@ const MARGIN = 24;
 const PANEL_WIDTH = 360;
 const PANEL_HEIGHT = 260;
 
+// dodo-web site — where users pick a species/photo and download a pet config.
+// FLAG: placeholder URL. Replace with the real deployed dodo-web URL once
+// Vercel is connected (repo: github.com/AsmitBhardwaj/dodo-web).
+const DODO_WEB_URL = 'https://dodo-web.vercel.app';
+
 // --- runtime state ---
 let panelMode = false;        // window is currently showing a card
 let widgetBounds = null;      // last known widget-mode position { x, y }
@@ -210,7 +215,11 @@ ipcMain.on('window-move-by', (_event, { dx, dy }) => {
 ipcMain.on('show-context-menu', () => {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'Change pet photo…',
+      label: 'Get a new pet…',
+      click: () => shell.openExternal(DODO_WEB_URL),
+    },
+    {
+      label: 'Import new pet…',
       click: () => {
         if (mainWindow) mainWindow.webContents.send('start-setup');
       },
@@ -224,8 +233,8 @@ ipcMain.on('show-context-menu', () => {
 ipcMain.on('ui-enter-panel', (_event, size) => enterPanelMode(size));
 ipcMain.on('ui-exit-panel', exitPanelMode);
 
-// Persist the pet the setup wizard produced; returns success so the renderer
-// can await before rendering.
+// Persist the pet imported from the JSON config card; returns success so the
+// renderer can await before rendering.
 ipcMain.handle('save-pet-config', (_event, cfg) => writePetConfig(cfg));
 
 ipcMain.on('open-input-monitoring-settings', () => {

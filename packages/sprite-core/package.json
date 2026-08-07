@@ -1,0 +1,17 @@
+{
+  "name": "sprite-core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic sprite data, palette math, and canvas rendering shared by the Dodo apps.",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false,
+  "license": "UNLICENSED",
+  "private": true
+}

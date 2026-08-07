@@ -1,0 +1,57 @@
+{
+  "name": "Dodo",
+  "version": "0.1.0",
+  "description": "A tiny pixel dog that lives on your desktop and reacts to your mouse and typing.",
+  "main": "main.js",
+  "author": "Asmit Bhardwaj",
+  "scripts": {
+    "build:renderer": "esbuild renderer/dog.js --bundle --format=iife --outfile=renderer/dog.bundle.js",
+    "start": "npm run build:renderer && electron .",
+    "dist": "npm run build:renderer && node scripts/package.mjs",
+    "dist:mac": "npm run build:renderer && node scripts/package.mjs --mac",
+    "dist:win": "npm run build:renderer && node scripts/package.mjs --win",
+    "dist:all": "npm run build:renderer && node scripts/package.mjs --mac --win"
+  },
+  "build": {
+    "appId": "com.asmit.Dodo",
+    "productName": "Dodo",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Dodo"
+    }
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
+    "sprite-core": "*"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.4"
+  }
+}

@@ -1,11 +1,19 @@
+import {
+  buildSprite,
+  drawSprite,
+  drawEyes,
+  drawTongue,
+  lerp,
+} from 'sprite-core';
+
 const canvas = document.getElementById('dog-canvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 // --- sprite (data-driven) ---
-// The shape + colors come from a sprite object built by the shared template
-// module (lib/spriteTemplate.js, loaded as the global `window.SpriteTemplate`).
-// This lets the widget render any generated pet, not just a hardcoded dog.
+// The shape + colors come from a sprite object built by the shared sprite-core
+// package (imported above; esbuild bundles it into the renderer). This lets the
+// widget render any generated pet, not just a hardcoded dog.
 // A 32x36 grid at SCALE=4 fills the 128x144 canvas.
 const SCALE = 4;
 
@@ -32,7 +40,7 @@ function applySprite(s) {
 
 // Default pet: the original golden retriever (exact original palette).
 applySprite(
-  window.SpriteTemplate.buildSprite({
+  buildSprite({
     species: 'dog',
     coat: { base: '#e0a860', shade: '#b5793a', light: '#f2d19a' },
     outline: '#3a2415',
@@ -61,105 +69,31 @@ let tongueVelocity = 0;
 let isDragging = false;        // pulling the tongue
 let isWindowDragging = false;  // moving the whole window
 
-function lerp(a, b, t) { return a + (b - a) * t; }
-
-function lerpColor(a, b, t) {
-  return [
-    Math.round(lerp(a[0], b[0], t)),
-    Math.round(lerp(a[1], b[1], t)),
-    Math.round(lerp(a[2], b[2], t)),
-  ];
-}
-
-// Heat tints the golden coat toward warm red as you type.
-function tint(hex) {
-  if (heat <= 0.01) return hex;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const hot = [214, 60, 32];
-  const [nr, ng, nb] = lerpColor([r, g, b], hot, heat * 0.6);
-  return `rgb(${nr}, ${ng}, ${nb})`;
-}
-
-function px(x, y, w = 1, h = 1) {
-  ctx.fillRect(
-    Math.round(x * SCALE),
-    Math.round(y * SCALE),
-    Math.round(w * SCALE),
-    Math.round(h * SCALE)
-  );
-}
-
-function drawSprite() {
-  for (let row = 0; row < SPRITE.length; row++) {
-    const line = SPRITE[row];
-    for (let col = 0; col < line.length; col++) {
-      const ch = line[col];
-      if (ch === '.') continue;
-      // skip the eye cells; the eyes are drawn dynamically below so the
-      // pupils can track the cursor (derived from the sprite's eye anchors).
-      if (isEyeCell(col, row)) continue;
-      const color = C[ch];
-      if (!color) continue;
-      // tint only the coat colors, not outline/nose/white/tongue
-      const shouldTint = TINTABLE.includes(ch);
-      ctx.fillStyle = shouldTint ? tint(color) : color;
-      px(col, row);
-    }
-  }
-}
-
-function drawEyes() {
-  const dir = Math.atan2(cursorDY, cursorDX);
-  // pupil can shift within the 3x3 white by up to 1 cell toward the cursor
-  const ox = Math.max(-1, Math.min(1, Math.round(Math.cos(dir))));
-  const oy = Math.max(-1, Math.min(1, Math.round(Math.sin(dir) * 0.7)));
-  for (const eye of EYES) {
-    if (!blinking) {
-      // 3x3 white
-      ctx.fillStyle = C.W;
-      px(eye.x, eye.y, 3, 3);
-      // 1x1 pupil, centered then nudged toward the cursor
-      ctx.fillStyle = C.K;
-      px(eye.x + 1 + ox, eye.y + 1 + oy, 1, 1);
-    } else {
-      // closed eye: a soft dark line across the middle row
-      ctx.fillStyle = C.O;
-      px(eye.x, eye.y + 1, 3, 1);
-    }
-  }
-}
-
-function drawTongue() {
-  const segments = Math.max(2, Math.round(tongueLength));
-  for (let i = 0; i < segments; i++) {
-    const t = (i / segments) * tongueLength;
-    const gx = MOUTH.x + tongueDirX * t;
-    const gy = MOUTH.y + tongueDirY * t;
-    ctx.fillStyle = C.P;
-    px(gx - 1, gy, 2, 1.1);
-  }
-  // rounded tip
-  const tipX = MOUTH.x + tongueDirX * tongueLength;
-  const tipY = MOUTH.y + tongueDirY * tongueLength;
-  ctx.fillStyle = C.P;
-  px(tipX - 1.5, tipY - 0.5, 3, 2);
-  // center crease
-  ctx.fillStyle = '#c65670';
-  for (let i = 0; i < segments; i++) {
-    const t = (i / segments) * tongueLength;
-    const gx = MOUTH.x + tongueDirX * t;
-    const gy = MOUTH.y + tongueDirY * t;
-    px(gx - 0.15, gy, 0.3, 1);
-  }
+// Bundle the current sprite + interaction state into the plain object the
+// sprite-core renderer expects (it takes a ctx + this state, nothing else).
+function spriteState() {
+  return {
+    grid: SPRITE,
+    palette: C,
+    tintable: TINTABLE,
+    scale: SCALE,
+    heat,
+    isEyeCell,
+    eyes: EYES,
+    mouth: MOUTH,
+    cursorDX,
+    cursorDY,
+    blinking,
+    tongue: { length: tongueLength, dirX: tongueDirX, dirY: tongueDirY },
+  };
 }
 
 function drawDog() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawTongue();  // behind the head so it comes "out" of the mouth
-  drawSprite();
-  drawEyes();
+  const state = spriteState();
+  drawTongue(ctx, state);  // behind the head so it comes "out" of the mouth
+  drawSprite(ctx, state);
+  drawEyes(ctx, state);
 }
 
 function updateTongue() {
@@ -289,25 +223,25 @@ if (window.comnyang) {
   });
 }
 
-// --- setup wizard + saved-pet rendering + macOS permission helper ---
+// --- config import + saved-pet rendering + macOS permission helper ---
 (function setup() {
   const bridge = window.comnyang;
   if (!bridge) return; // running without the preload bridge (e.g. bare browser)
 
   const panelEl = document.getElementById('panel');
-  const setupEl = document.getElementById('setup');
+  const importEl = document.getElementById('import');
   const permissionEl = document.getElementById('permission');
 
-  // Panel is larger for the setup wizard than for the permission card.
-  const SETUP_SIZE = { w: 420, h: 480 };
+  // Both cards are small now — the import card is a single dropzone step.
+  const IMPORT_SIZE = { w: 340, h: 320 };
   const PERM_SIZE = { w: 360, h: 260 };
 
   let platform = 'darwin';
-  let setupActive = false;
+  let importActive = false;
   let permissionQueued = false;
 
-  // Colors that stay fixed regardless of the pet's photo (constraint): only
-  // the coat tones (base/light/shade) come from the photo.
+  // Colors that stay fixed regardless of the pet (constraint): only the coat
+  // tones (base/light/shade) come from the imported config.
   const FIXED_COLORS = {
     outline: '#3a2415',
     nose: '#2a1a10',
@@ -317,7 +251,7 @@ if (window.comnyang) {
 
   // Build a renderable sprite from a saved pet config.
   function spriteFromConfig(cfg) {
-    return window.SpriteTemplate.buildSprite({
+    return buildSprite({
       species: cfg.species,
       shape: cfg.shape,
       coat: cfg.coat,
@@ -332,29 +266,17 @@ if (window.comnyang) {
     applySprite(spriteFromConfig(cfg));
   }
 
-  // PHASE 1 PLACEHOLDER: real color extraction lands in Phase 2. For now we
-  // ignore the photo's pixels and return a fixed dummy coat so the end-to-end
-  // flow (upload → save → render) can be verified.
-  function extractCoatPalette(_photoDataUrl) {
-    const base = '#c98a4b'; // DUMMY placeholder tan
-    return {
-      base,
-      light: window.SpriteTemplate.shift(base, 0.35),
-      shade: window.SpriteTemplate.shift(base, -0.28),
-    };
-  }
-
   // --- panel helpers ---
   function openCard(which, size) {
     document.body.classList.add('panel-open');
     panelEl.classList.remove('hidden');
-    setupEl.classList.toggle('hidden', which !== 'setup');
+    importEl.classList.toggle('hidden', which !== 'import');
     permissionEl.classList.toggle('hidden', which !== 'permission');
     bridge.enterPanel(size.w, size.h);
   }
   function closePanel() {
     panelEl.classList.add('hidden');
-    setupEl.classList.add('hidden');
+    importEl.classList.add('hidden');
     permissionEl.classList.add('hidden');
     document.body.classList.remove('panel-open');
     bridge.exitPanel();
@@ -365,67 +287,70 @@ if (window.comnyang) {
     openCard('permission', PERM_SIZE);
   }
 
-  // --- wizard state + navigation ---
-  const draft = { photo: null, species: null, shape: null };
-  const steps = Array.from(setupEl.querySelectorAll('.step'));
-  function showStep(name) {
-    steps.forEach((s) => s.classList.toggle('hidden', s.dataset.step !== name));
-  }
-
-  function startSetup() {
-    setupActive = true;
-    draft.photo = null;
-    draft.species = null;
-    draft.shape = null;
-    // reset UI
-    photoPreview.classList.add('hidden');
-    photoPreview.removeAttribute('src');
-    dropHint.classList.remove('hidden');
-    photoNext.disabled = true;
-    setupEl.querySelectorAll('.choice.selected').forEach((c) => c.classList.remove('selected'));
-    showStep('photo');
-    openCard('setup', SETUP_SIZE);
-  }
-
-  function finishSetup() {
-    const cfg = {
-      version: 1,
-      species: draft.species,
-      shape: draft.species === 'dog' ? draft.shape : null,
-      coat: extractCoatPalette(draft.photo),
-    };
-    Promise.resolve(bridge.savePetConfig(cfg)).finally(() => {
-      setupActive = false;
-      renderSavedPet(cfg);
-      closePanel();
-      if (permissionQueued) {
-        permissionQueued = false;
-        showPermission();
-      }
-    });
-  }
-
-  // --- photo step (drag-drop + file picker) ---
+  // --- import step: read the .json pet config the website generates ---
   const dropzone = document.getElementById('dropzone');
-  const photoInput = document.getElementById('photo-input');
-  const photoPreview = document.getElementById('photo-preview');
-  const dropHint = dropzone.querySelector('.drop-hint');
-  const photoNext = document.getElementById('photo-next');
+  const configInput = document.getElementById('config-input');
+  const importError = document.getElementById('import-error');
 
-  function loadPhotoFile(file) {
-    if (!file || !file.type.startsWith('image/')) return;
+  function startImport() {
+    importActive = true;
+    importError.classList.add('hidden');
+    importError.textContent = '';
+    configInput.value = ''; // allow re-selecting the same file
+    openCard('import', IMPORT_SIZE);
+  }
+
+  function showImportError(msg) {
+    importError.textContent = msg;
+    importError.classList.remove('hidden');
+  }
+
+  // Expected shape: { version, species, shape, coat: { base, light, shade } }.
+  // shape is null for species without variants (cat/bear); species and the
+  // coat tones are load-bearing for rendering, so those are validated strictly.
+  function isValidConfig(cfg) {
+    if (!cfg || typeof cfg !== 'object') return false;
+    if (typeof cfg.species !== 'string' || !cfg.species) return false;
+    const coat = cfg.coat;
+    if (!coat || typeof coat !== 'object') return false;
+    return (
+      typeof coat.base === 'string' &&
+      typeof coat.light === 'string' &&
+      typeof coat.shade === 'string'
+    );
+  }
+
+  function loadConfigFile(file) {
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      draft.photo = reader.result; // data URL (used for extraction in Phase 2)
-      photoPreview.src = reader.result;
-      photoPreview.classList.remove('hidden');
-      dropHint.classList.add('hidden');
-      photoNext.disabled = false;
+      let cfg;
+      try {
+        cfg = JSON.parse(reader.result);
+      } catch (e) {
+        showImportError("That file isn't valid JSON. Download a pet file from the Dodo website and try again.");
+        return;
+      }
+      if (!isValidConfig(cfg)) {
+        showImportError("That doesn't look like a Dodo pet file. Make sure you picked the .json you downloaded.");
+        return;
+      }
+      importError.classList.add('hidden');
+      Promise.resolve(bridge.savePetConfig(cfg)).finally(() => {
+        importActive = false;
+        renderSavedPet(cfg);
+        closePanel();
+        if (permissionQueued) {
+          permissionQueued = false;
+          showPermission();
+        }
+      });
     };
-    reader.readAsDataURL(file);
+    reader.onerror = () => showImportError("Couldn't read that file. Try again.");
+    reader.readAsText(file);
   }
 
-  photoInput.addEventListener('change', (e) => loadPhotoFile(e.target.files[0]));
+  configInput.addEventListener('change', (e) => loadConfigFile(e.target.files[0]));
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropzone.classList.add('dragover');
@@ -434,53 +359,25 @@ if (window.comnyang) {
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.classList.remove('dragover');
-    loadPhotoFile(e.dataTransfer.files[0]);
+    loadConfigFile(e.dataTransfer.files[0]);
   });
-  photoNext.addEventListener('click', () => showStep('species'));
-
-  // --- species step ---
-  setupEl.querySelectorAll('[data-species]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      draft.species = btn.dataset.species;
-      showStep(draft.species === 'dog' ? 'shape' : 'create');
-    });
-  });
-
-  // --- shape step (dog only) ---
-  setupEl.querySelectorAll('[data-shape]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      draft.shape = btn.dataset.shape;
-      setupEl.querySelectorAll('[data-shape]').forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      showStep('create');
-    });
-  });
-
-  // --- back buttons ---
-  setupEl.querySelectorAll('[data-back]').forEach((btn) => {
-    btn.addEventListener('click', () => showStep(btn.dataset.back));
-  });
-  document.getElementById('create-back').addEventListener('click', () => {
-    showStep(draft.species === 'dog' ? 'shape' : 'species');
-  });
-  document.getElementById('create-go').addEventListener('click', finishSetup);
 
   // --- app lifecycle ---
   bridge.onAppInit(({ petConfig, platform: plat }) => {
     if (plat) platform = plat;
     if (petConfig) renderSavedPet(petConfig);
-    else startSetup();
+    else startImport();
   });
-  bridge.onStartSetup(() => startSetup());
+  bridge.onStartSetup(() => startImport());
 
   bridge.onPermissionNeeded(() => {
-    // Defer the permission card until setup is finished, if it's open.
-    if (setupActive) permissionQueued = true;
+    // Defer the permission card until import is finished, if it's open.
+    if (importActive) permissionQueued = true;
     else showPermission();
   });
   bridge.onHooksActive(() => {
     permissionQueued = false;
-    if (!setupActive && !permissionEl.classList.contains('hidden')) closePanel();
+    if (!importActive && !permissionEl.classList.contains('hidden')) closePanel();
   });
 
   // permission card buttons

@@ -1,56 +1,21 @@
 {
-  "name": "Dodo",
+  "name": "dodo-monorepo",
   "version": "0.1.0",
-  "description": "A tiny pixel dog that lives on your desktop and reacts to your mouse and typing.",
-  "main": "main.js",
-  "author": "Asmit Bhardwaj",
+  "private": true,
+  "description": "Monorepo for Dodo — the desktop pet app and its shared sprite-core package.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:all": "electron-builder --mac --win"
-  },
-  "build": {
-    "appId": "com.asmit.Dodo",
-    "productName": "Dodo",
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
-      "lib/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.utilities",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ]
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "dmg": {
-      "title": "Dodo"
-    }
-  },
-  "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
-  },
-  "dependencies": {
-    "uiohook-napi": "^1.5.4"
+    "start": "npm start --workspace apps/dodo",
+    "dev:web": "npm run dev --workspace apps/dodo-web",
+    "build:web": "npm run build --workspace apps/dodo-web",
+    "build:renderer": "npm run build:renderer --workspace apps/dodo",
+    "dist:mac": "npm run dist:mac --workspace apps/dodo",
+    "dist:win": "npm run dist:win --workspace apps/dodo",
+    "dist:all": "npm run dist:all --workspace apps/dodo",
+    "demo:sprite": "node apps/dodo/scripts/demo-sprite.mjs"
   },
   "allowScripts": {
     "electron@33.4.11": true,

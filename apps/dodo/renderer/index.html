@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="drag-handle"></div>
+  <canvas id="dog-canvas" width="128" height="144"></canvas>
+
+  <!-- Cards shown in the temporary larger "panel mode" -->
+  <div id="panel" class="hidden">
+    <!-- Import pet config (first launch / "Change pet" from the menu) -->
+    <div id="import" class="card hidden">
+      <div class="card-emoji">🐾</div>
+      <h1>Import your pet</h1>
+      <p>Drop the pet file you downloaded from the Dodo website, and I'll become your pet.</p>
+      <label id="dropzone">
+        <span class="drop-hint">Drag your <b>.json</b> here<br />or click to choose</span>
+        <input id="config-input" type="file" accept="application/json,.json" hidden />
+      </label>
+      <p id="import-error" class="error hidden"></p>
+    </div>
+
+    <div id="permission" class="card hidden">
+      <div class="card-emoji">🔒</div>
+      <h1>Let me see your mouse &amp; typing</h1>
+      <p>Turn on <b>Input Monitoring</b> for Dodo in System Settings, then restart me so I can react.</p>
+      <div class="btn-row">
+        <button id="perm-open">Open Settings</button>
+        <button id="perm-restart" class="secondary">Restart Dodo</button>
+      </div>
+      <button id="perm-dismiss" class="link">Not now</button>
+    </div>
+  </div>
+
+  <!-- dog.js + sprite-core, bundled by esbuild (npm run build:renderer) -->
+  <script src="dog.bundle.js"></script>
+</body>
+</html>
