@@ -53,6 +53,12 @@ applySprite(
 // --- interaction state ---
 let heat = 0;
 let lastTypingTime = 0;
+// Heat cooldown tuning: after the last keystroke, wait HEAT_DECAY_DELAY ms
+// before cooling, then subtract HEAT_DECAY_RATE per frame. Sized so the coat is
+// back to normal ~1.7s after typing stops (delay ~1.2s + ~0.55s to decay from
+// full), not the old ~6s. Heat-up (below, +0.04/frame) is unchanged.
+const HEAT_DECAY_DELAY = 1200;
+const HEAT_DECAY_RATE = 0.03;
 let cursorDX = 0;
 let cursorDY = 0;
 let tailPhase = 0;
@@ -116,10 +122,10 @@ function updateTongue() {
 function tick() {
   const now = performance.now();
   const sinceTyping = now - lastTypingTime;
-  if (sinceTyping < 4000) {
+  if (sinceTyping < HEAT_DECAY_DELAY) {
     heat = Math.min(1, heat + 0.04);
   } else {
-    heat = Math.max(0, heat - 0.01);
+    heat = Math.max(0, heat - HEAT_DECAY_RATE);
   }
   tailPhase += 0.12;
   blinkTimer += 1;

@@ -14,9 +14,10 @@ const PANEL_WIDTH = 360;
 const PANEL_HEIGHT = 260;
 
 // dodo-web site — where users pick a species/photo and download a pet config.
-// FLAG: placeholder URL. Replace with the real deployed dodo-web URL once
-// Vercel is connected (repo: github.com/AsmitBhardwaj/dodo-web).
-const DODO_WEB_URL = 'https://dodo-web.vercel.app';
+// Live on Vercel (apps/dodo-web workspace). The #create hash jumps straight to
+// the pet-creation section, skipping the landing/marketing copy — the right
+// target for someone clicking "Get a new pet…" from inside the app.
+const DODO_WEB_URL = 'https://dodo-web-dusky.vercel.app/#create';
 
 // --- runtime state ---
 let panelMode = false;        // window is currently showing a card

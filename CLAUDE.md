@@ -126,11 +126,16 @@ in this monorepo (was a standalone repo). Boots via `npm run dev:web`.
 - `AGENTS.md` in that folder is auto-generated/re-added by `next dev` (a Next.js
   agent-rules block) — not hand-maintained context.
 
-Phased plan (2–4 not yet built):
+Phased plan:
 1. Scaffold + deploy (bare Next.js on Vercel). — **done (scaffold + landing + B&W)**
-2. Photo upload + client-side color extraction (via sprite-core).
-3. Species/shape picker + live preview canvas (via sprite-core `render`).
-4. Download flow (universal installer link + generated JSON config).
+2. Photo upload + client-side color extraction (via sprite-core). — **done**
+   (upload + crop + `extractDominantColor`/`deriveCoat` + live preview via
+   sprite-core `render` + `dodo-pet-config.json` export, in the `#create`
+   section; species/shape hardcoded to one dog shape).
+3. Species/shape picker gallery + multi-shape live preview — **not built**
+   (Phase 2 hardcodes `dog`/`retriever`; needs the 2nd dog + cat shapes too).
+4. Download flow (universal installer link alongside the generated JSON config).
+   — **not built** (the JSON export half of this already works via Phase 2).
 
 ## Known gotchas
 
@@ -162,33 +167,53 @@ Phased plan (2–4 not yet built):
   a stale standalone `package-lock.json` was removed and the root lockfile
   regenerated.
 - **sprite-core:** extracted. Sprite grids/anchors, palette roles, and tint math
-  live here; `apps/dodo`'s renderer imports it (esbuild-bundled). `color-extract`
-  is not yet added.
+  live here; `apps/dodo`'s renderer imports it (esbuild-bundled). **`color-extract.js`
+  added** — pure `extractDominantColor(rgba)` (coarse bucket clustering) +
+  `deriveCoat(base)` (light/shade via `shift()`, matching `buildPalette` defaults),
+  consumed by dodo-web's upload flow.
 - **Electron app:** functional prototype (cursor tracking, tongue physics, heat
   tinting, idle blink/tail). **Full-body window dragging implemented.** Onboarding
   is a single JSON-config import step (wizard removed). Right-click menu is the
   two-item "Get a new pet…" / "Import new pet…" + Quit. `npm start` launches and
   `npm run dist:mac` builds `Dodo-0.1.0-arm64.dmg` cleanly from the new path.
-- **dodo-web:** Phase 1 (Next.js/Tailwind scaffold + B&W landing page), boots via
-  `npm run dev:web`. Uses its own placeholder `PixelDodo`, not sprite-core yet.
-  Phases 2–4 not built. Vercel deploy not yet connected.
+- **dodo-web:** Phase 1 (landing page) **and Phase 2 (photo → pet config)** done.
+  The `#create` section is now a working customizer: drag-drop/click **upload**
+  → draggable/resizable **square crop** (no ML subject detection, by design) →
+  client-side **color extraction** (via sprite-core `extractDominantColor` +
+  `deriveCoat`) → **live preview** rendered with sprite-core's own
+  `drawSprite`/`drawEyes`/`drawTongue` (pixel-parity with the app's rest frame)
+  → **JSON export** (`dodo-pet-config.json`) matching the app's import schema.
+  Entirely client-side — no image or data leaves the browser (verified: no
+  fetch/XHR/remote-image in the extraction path). Species/shape are **hardcoded**
+  (`dog` / placeholder shape id `retriever` = the current floppy-eared `BASE_DOG`);
+  the real species/shape **picker gallery is Phase 3, still open**. The old
+  hand-drawn `PixelDodo` placeholder is still used only in the hero visual.
+  Phase 4 (installer-link download flow) not built. **Live on Vercel** at
+  `https://dodo-web-dusky.vercel.app` (connected to the monorepo with
+  `apps/dodo-web` set as the Root Directory). The Electron app's
+  `DODO_WEB_URL` now points at this real URL (`/#create`), no longer a placeholder.
 - Only two sprite shapes exist: the original pointy-eared shape (slated to become
   the Bear) and one floppy-eared retriever shape. The 2nd dog shape
   (shepherd-build) and the cat shape are not yet made.
 
 ## Open issues / next steps, in rough order
 
-1. **Reconcile dodo-web to use `sprite-core`** for its preview instead of the
-   placeholder `PixelDodo`, so a second sprite implementation doesn't linger.
-2. Add `sprite-core/src/color-extract.js` (photo → 2-3 dominant coat colors,
-   client-side bucketing) shared by the web upload flow.
+1. **Reconcile dodo-web to use `sprite-core`** — mostly done: the Phase 2
+   customizer preview now renders via sprite-core. The leftover is the hero
+   visual, which still uses the hand-drawn `PixelDodo` placeholder — swap it (or
+   retire `PixelDodo`) so a second sprite implementation doesn't linger.
+2. ~~Add `sprite-core/src/color-extract.js`~~ — **done** (`extractDominantColor`
+   + `deriveCoat`, consumed by dodo-web's upload flow).
 3. Build the remaining shape templates: 2nd dog shape (shepherd-build), 1 cat
-   shape.
-4. dodo-web Phases 2–4: upload + color extraction, species/shape picker + live
-   preview (sprite-core `render`), download flow (installer link + JSON config
-   export). Phase 4's exported JSON is what the app's import step consumes.
-5. Connect/confirm the Vercel deploy and set the real `DODO_WEB_URL` in
-   `apps/dodo/main.js` (currently the placeholder `https://dodo-web.vercel.app`).
+   shape. (Blocks a real Phase 3 picker — only `BASE_DOG` exists today.)
+4. dodo-web Phase 3 (species/shape picker gallery + multi-shape preview) and
+   Phase 4 (universal installer download link alongside the JSON export). Phase 2
+   already ships upload + extraction + preview + `dodo-pet-config.json` export
+   for one hardcoded shape; that exported JSON is what the app's import consumes.
+5. ~~Connect the Vercel deploy and set the real `DODO_WEB_URL`~~ — **done.**
+   dodo-web is live at `https://dodo-web-dusky.vercel.app` (monorepo connected,
+   `apps/dodo-web` as Root Directory) and `apps/dodo/main.js` now points
+   `DODO_WEB_URL` at `https://dodo-web-dusky.vercel.app/#create`.
 
 ## Design system (dodo-web)
 

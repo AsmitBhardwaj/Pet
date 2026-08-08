@@ -1,5 +1,6 @@
 import PixelDodo from "./components/PixelDodo";
 import PixelIcon from "./components/PixelIcon";
+import Customizer from "./components/Customizer";
 
 const DOWNLOAD_URL = "https://github.com/AsmitBhardwaj/dodopet/releases/latest";
 
@@ -189,28 +190,28 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CTA */}
+        {/* Create — the photo-to-pet customizer (Phase 2). The Electron app
+            deep-links here (DODO_WEB_URL = .../#create) from "Get a new pet…". */}
         <section
           id="create"
           className="border-t-2 border-border px-6 py-20 md:py-24"
         >
-          <div className="card-pixel mx-auto max-w-4xl p-10 text-center md:p-16">
-            <h2 className="font-pixel text-[16px] leading-[1.6] sm:text-[22px]">
-              Ready to meet
-              <br />
-              your Dodo?
+          <div className="mx-auto max-w-5xl">
+            <h2 className="font-pixel text-center text-[16px] leading-[1.6] sm:text-[22px]">
+              Make your pet
             </h2>
-            <p className="mx-auto mt-5 max-w-md text-muted">
-              The photo-to-pet customizer is on its way. For now, grab the app
-              and be first in line.
+            <p className="mx-auto mt-5 mb-14 max-w-xl text-center text-muted">
+              Upload a photo, frame the fur, and download a config that skins
+              the app to match your pet&apos;s colors.
             </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-5">
-              <a href={DOWNLOAD_URL} className="btn-pixel btn-primary">
+            <Customizer />
+            <div className="mt-16 text-center">
+              <p className="mb-5 text-sm text-muted">
+                Got your config? Grab the app and import it on first launch.
+              </p>
+              <a href={DOWNLOAD_URL} className="btn-pixel btn-secondary">
                 Download for Mac
               </a>
-              <span className="btn-pixel btn-secondary" style={{ opacity: 0.6 }}>
-                Customizer soon
-              </span>
             </div>
           </div>
         </section>

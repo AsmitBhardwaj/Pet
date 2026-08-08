@@ -68,3 +68,4 @@ export {
   rgbToHex,
 } from './palette.js';
 export { drawSprite, drawEyes, drawTongue } from './render.js';
+export { extractDominantColor, deriveCoat } from './color-extract.js';

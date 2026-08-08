@@ -16,15 +16,26 @@ something here meaningfully changes. Don't duplicate that content in this file.
 
 ## Current state (honest, not aspirational)
 
-- **Phase 1 only.** Bare Next.js scaffold + a single landing page (`app/page.js`,
-  `app/layout.js`, `app/globals.css`), restyled to the retro black-and-white
-  pixel/CRT theme. Nothing else is built: **no** upload flow, **no** species/
-  shape picker, **no** download flow, **no** live preview.
-- **Does NOT use `sprite-core` yet.** The landing page renders a hand-drawn
-  placeholder, `app/components/PixelDodo.js`. When the real preview is built
-  (root Open issues #1 / Phase 3), it MUST import `sprite-core`'s render
-  functions so the web preview matches the Electron app pixel-for-pixel — do not
-  reimplement sprite/palette logic here.
+- **Phases 1 + 2 done.** Landing page (`app/page.js`, `app/layout.js`,
+  `app/globals.css`) in the retro B&W pixel/CRT theme, plus a working
+  photo-to-config **customizer** in the `#create` section.
+- **Phase 2 customizer** (`app/components/Customizer.js` + `PhotoCropper.js` +
+  `SpritePreview.js`, glue in `app/lib/extract.js`): drag-drop/click **upload**
+  → draggable/resizable **square crop** (no ML subject detection, by design) →
+  client-side **color extraction** → **live preview** → **JSON export**
+  (`dodo-pet-config.json`). All client-side; nothing is uploaded.
+- **Uses `sprite-core` now.** Extraction goes through `extractDominantColor` +
+  `deriveCoat`; the preview renders with sprite-core's `drawSprite`/`drawEyes`/
+  `drawTongue` (same funcs as the Electron renderer, so it's pixel-accurate).
+  `sprite-core` is a declared dep and compiled via `transpilePackages` in
+  `next.config.mjs`. Any color/sprite math still belongs in sprite-core, never
+  here — the only web-side code is DOM/canvas glue.
+- **Still placeholder:** the hero visual uses the hand-drawn
+  `app/components/PixelDodo.js` (root Open issue #1). Species/shape are
+  **hardcoded** to `dog`/`retriever` — the real picker gallery is Phase 3
+  (needs the 2nd dog + cat shapes, which don't exist in sprite-core yet).
+- **Not built:** Phase 3 (species/shape picker), Phase 4 (installer download
+  link — the JSON-export half already works).
 - Folded into this monorepo from a standalone repo (history preserved). No
   per-app `package-lock.json` — the root lockfile is authoritative.
 
